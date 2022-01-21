@@ -1,5 +1,3 @@
-import { InjectRepository } from '@mikro-orm/nestjs';
-import { EntityRepository } from '@mikro-orm/postgresql';
 import {
   BadRequestException,
   CACHE_MANAGER,
@@ -17,7 +15,7 @@ import { CommonService } from 'src/common/common.service';
 import { LocalMessageType } from 'src/common/gql-types/message.type';
 import { getUnixTime } from 'src/common/helpers/get-unix-time';
 import { OnlineStatusEnum } from 'src/users/enums/online-status.enum';
-import { v5 as uuidV5 } from 'uuid';
+import { v5 as uuidV5, v4 as uuidV4 } from 'uuid';
 import { IJwt, ISingleJwt } from '../config/config';
 import { EmailService } from '../email/email.service';
 import { UserEntity } from '../users/entities/user.entity';
@@ -28,7 +26,6 @@ import { ConfirmEmailDto } from './dtos/confirm-email.dto';
 import { ConfirmLoginDto } from './dtos/confirm-login.dto';
 import { ResetEmailDto } from './dtos/reset-email.dto';
 import { ResetPasswordDto } from './dtos/reset-password.dto';
-import { SessionEntity } from './entities/session.entity';
 import { AuthType } from './gql-types/auth.type';
 import { LoginInput } from './inputs/login.input';
 import { RegisterInput } from './inputs/register.input';
@@ -45,8 +42,6 @@ import {
 @Injectable()
 export class AuthService {
   constructor(
-    @InjectRepository(SessionEntity)
-    private readonly sessionsRepository: EntityRepository<SessionEntity>,
     private readonly usersService: UsersService,
     private readonly configService: ConfigService,
     private readonly emailService: EmailService,
@@ -59,9 +54,12 @@ export class AuthService {
     this.configService.get<string>('REFRESH_COOKIE');
   private readonly url = this.configService.get<string>('url');
   private readonly authNamespace = this.configService.get<string>('AUTH_UUID');
+  private readonly wsNamespace = this.configService.get<string>('WS_UUID');
   private readonly testing = this.configService.get<boolean>('testing');
   private readonly accessTime =
     this.configService.get<number>('jwt.access.time');
+  private readonly wsAccessTime =
+    this.configService.get<number>('jwt.wsAccess.time');
 
   //____________________ MUTATIONS ____________________
 
@@ -358,27 +356,25 @@ export class AuthService {
       refreshToken,
       'refresh',
     )) as ITokenPayloadResponse;
-    const user = await this.usersService.getUserByPayload(payload);
+    const { id, count } = await this.usersService.getUserByPayload(payload);
+    const userUuid = uuidV5(id.toString(), this.wsNamespace);
 
-    const session = this.sessionsRepository.create({ user });
-    if (user.onlineState === OnlineStatusEnum.OFFLINE || status)
-      user.onlineState = status ? status : OnlineStatusEnum.ONLINE;
-
-    await this.commonService.throwInternalError(
-      this.cacheManager.set<ISessionData>(session.id, {
-        count: user.count,
-        time: getUnixTime(),
-      }),
+    let sessionData = await this.commonService.throwInternalError(
+      this.cacheManager.get<ISessionData>(userUuid),
     );
 
-    await this.commonService.throwInternalError(
-      this.sessionsRepository.persistAndFlush(session),
-    );
+    if (!sessionData)
+      sessionData = {
+        count,
+        status: status ?? OnlineStatusEnum.ONLINE,
+        sessions: {},
+      };
 
-    return await this.generateAuthToken(
-      { id: user.id, sessionId: session.id },
-      'wsAccess',
-    );
+    const sessionId = uuidV4();
+    sessionData.sessions[sessionId] = getUnixTime();
+    await this.saveSessionData(userUuid, sessionData);
+
+    return await this.generateAuthToken({ id, sessionId }, 'wsAccess');
   }
 
   /**
@@ -389,49 +385,28 @@ export class AuthService {
    * makes the user online status offline
    */
   public async refreshUserSession(userId: number, sessionId: string) {
-    const data = await this.commonService.throwInternalError(
-      this.cacheManager.get<ISessionData>(sessionId),
+    const userUuid = uuidV5(userId.toString(), this.wsNamespace);
+    const sessionData = await this.commonService.throwInternalError(
+      this.cacheManager.get<ISessionData>(userUuid),
     );
 
-    if (!data) {
-      await this.commonService.throwInternalError(
-        this.sessionsRepository.nativeDelete({
-          id: sessionId,
-        }),
-      );
+    if (!sessionData || !sessionData.sessions[sessionId])
       throw new UnauthorizedException('Invalid user session');
-    }
 
-    const { count, time } = data;
     const now = getUnixTime();
 
-    if (now - time > this.accessTime) {
-      const user = await this.usersService.getUserById(userId);
+    if (now - sessionData.sessions[sessionId] > this.accessTime) {
+      const { count } = await this.usersService.getUserById(userId);
 
-      if (user.count !== count) {
+      if (count !== sessionData.count) {
         await this.commonService.throwInternalError(
-          this.sessionsRepository.nativeDelete({
-            id: sessionId,
-          }),
+          this.cacheManager.del(userUuid),
         );
-
-        await this.commonService.throwInternalError(
-          this.cacheManager.del(sessionId),
-        );
-
-        const sessionCount = await this.sessionsRepository.count({ user });
-        if (sessionCount === 0) {
-          user.onlineState = OnlineStatusEnum.OFFLINE;
-          await this.usersService.saveUserToDb(user);
-        }
-
-        throw new UnauthorizedException('Session has expired');
+        throw new UnauthorizedException('Credentials have been changed');
       }
 
-      data.time = now;
-      await this.commonService.throwInternalError(
-        this.cacheManager.set<ISessionData>(sessionId, data),
-      );
+      sessionData.sessions[sessionId] = now;
+      await this.saveSessionData(userUuid, sessionData);
     }
   }
 
@@ -449,26 +424,25 @@ export class AuthService {
     const { sessionId, id } = payload;
 
     if (!sessionId) throw new UnauthorizedException('Invalid session id');
-    const session = await this.sessionsRepository.findOne({ id: sessionId }, [
-      'user',
-    ]);
 
-    if (!session) throw new UnauthorizedException('Invalid session id');
-
-    const user = session.user;
-
-    await this.commonService.throwInternalError(
-      this.sessionsRepository.removeAndFlush(session),
-    );
-    await this.commonService.throwInternalError(
-      this.cacheManager.del(sessionId),
+    const userUuid = uuidV5(id.toString(), this.wsNamespace);
+    const sessionData = await this.commonService.throwInternalError(
+      this.cacheManager.get<ISessionData>(userUuid),
     );
 
-    const count = await this.sessionsRepository.count({ user: id });
-    if (count === 0) {
-      user.onlineState = OnlineStatusEnum.OFFLINE;
-      await this.usersService.saveUserToDb(user);
+    if (!sessionData.sessions[sessionId])
+      throw new UnauthorizedException('Invalid session id');
+
+    delete sessionData.sessions[sessionId];
+
+    if (Object.keys(sessionData.sessions).length === 0) {
+      await this.commonService.throwInternalError(
+        this.cacheManager.del(userUuid),
+      );
+      return;
     }
+
+    await this.saveSessionData(userUuid, sessionData);
   }
 
   //____________________ PRIVATE METHODS ____________________
@@ -585,5 +559,21 @@ export class AuthService {
       path: '/',
       expires: new Date(Date.now() + 604800000),
     });
+  }
+
+  /**
+   * Save Session Data
+   *
+   * Saves session data in cache
+   */
+  private async saveSessionData(
+    userUuid: string,
+    sessionData: ISessionData,
+  ): Promise<void> {
+    await this.commonService.throwInternalError(
+      this.cacheManager.set<ISessionData>(userUuid, sessionData, {
+        ttl: this.wsAccessTime,
+      }),
+    );
   }
 }

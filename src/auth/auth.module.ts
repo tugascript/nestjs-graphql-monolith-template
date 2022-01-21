@@ -1,4 +1,3 @@
-import { MikroOrmModule } from '@mikro-orm/nestjs';
 import { Module } from '@nestjs/common';
 import { PassportModule } from '@nestjs/passport';
 import { EmailModule } from '../email/email.module';
@@ -6,12 +5,10 @@ import { UsersModule } from '../users/users.module';
 import { AuthController } from './auth.controller';
 import { AuthResolver } from './auth.resolver';
 import { AuthService } from './auth.service';
-import { SessionEntity } from './entities/session.entity';
 import { JwtStrategy } from './jwt.strategy';
 
 @Module({
   imports: [
-    MikroOrmModule.forFeature([SessionEntity]),
     PassportModule.register({ defaultStrategy: 'jwt' }),
     UsersModule,
     EmailModule,

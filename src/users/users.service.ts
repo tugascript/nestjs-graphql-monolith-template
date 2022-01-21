@@ -2,16 +2,23 @@ import { InjectRepository } from '@mikro-orm/nestjs';
 import { EntityRepository } from '@mikro-orm/postgresql';
 import {
   BadRequestException,
+  CACHE_MANAGER,
+  Inject,
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { hash } from 'bcrypt';
-import { UploaderService } from 'src/uploader/uploader.service';
+import { Cache } from 'cache-manager';
+import { v5 as uuidV5 } from 'uuid';
 import { RegisterInput } from '../auth/inputs/register.input';
+import { ISessionData } from '../auth/interfaces/session-data.interface';
 import { ITokenPayload } from '../auth/interfaces/token-payload.interface';
 import { CommonService } from '../common/common.service';
+import { UploaderService } from '../uploader/uploader.service';
 import { ProfilePictureDto } from './dtos/profile-picture.dto';
 import { UserEntity } from './entities/user.entity';
+import { OnlineStatusEnum } from './enums/online-status.enum';
 
 @Injectable()
 export class UsersService {
@@ -20,7 +27,12 @@ export class UsersService {
     private readonly usersRepository: EntityRepository<UserEntity>,
     private readonly commonService: CommonService,
     private readonly uploaderService: UploaderService,
+    private readonly configService: ConfigService,
+    @Inject(CACHE_MANAGER)
+    private readonly cacheManager: Cache,
   ) {}
+
+  private readonly wsNamespace = this.configService.get<string>('WS_UUID');
 
   //____________________ MUTATIONS ____________________
 
@@ -128,6 +140,21 @@ export class UsersService {
     const user = await this.usersRepository.findOne({ id });
     this.commonService.checkExistence('User', user);
     return user;
+  }
+
+  /**
+   * Get User Online Status
+   *
+   * Gets user online status from cache
+   */
+  public async getUserOnlineStatus(userId: number) {
+    const sessionData = await this.commonService.throwInternalError(
+      this.cacheManager.get<ISessionData>(
+        uuidV5(userId.toString(), this.wsNamespace),
+      ),
+    );
+
+    return sessionData ? sessionData.status : OnlineStatusEnum.OFFLINE;
   }
 
   //____________________ OTHER ____________________
