@@ -4,13 +4,13 @@ import { GqlModuleOptions, GqlOptionsFactory } from '@nestjs/graphql';
 import { BaseRedisCache } from 'apollo-server-cache-redis';
 import { ApolloServerPluginCacheControl } from 'apollo-server-core';
 import responseCachePlugin from 'apollo-server-plugin-response-cache';
+import { Request } from 'express';
 import * as Redis from 'ioredis';
 import { RedisOptions } from 'ioredis';
-import { OnlineStatusEnum } from 'src/users/enums/online-status.enum';
 import { AuthService } from '../auth/auth.service';
 import { ICtx } from '../common/interfaces/ctx.interface';
-import { Request } from 'express';
-import { ISubscriptionCtx } from 'src/common/interfaces/subscription-ctx.interface';
+import { ISubscriptionCtx } from '../common/interfaces/subscription-ctx.interface';
+import { OnlineStatusEnum } from '../users/enums/online-status.enum';
 
 @Injectable()
 export class GraphQLConfig implements GqlOptionsFactory {
@@ -21,6 +21,7 @@ export class GraphQLConfig implements GqlOptionsFactory {
 
   private readonly cookieName =
     this.configService.get<string>('REFRESH_COOKIE');
+  private readonly testing = this.configService.get<boolean>('testing');
 
   public createGqlOptions(): GqlModuleOptions {
     return {
@@ -30,7 +31,7 @@ export class GraphQLConfig implements GqlOptionsFactory {
       }),
       path: '/api/graphql',
       autoSchemaFile: './schema.gql',
-      debug: this.configService.get<boolean>('testing'),
+      debug: this.testing,
       sortSchema: true,
       bodyParserConfig: false,
       playground: this.configService.get<boolean>('playground'),
@@ -42,7 +43,7 @@ export class GraphQLConfig implements GqlOptionsFactory {
         origin: this.configService.get<string>('url'),
         credentials: true,
       },
-      cache: this.configService.get<boolean>('testing')
+      cache: this.testing
         ? undefined
         : new BaseRedisCache({
             client: new Redis(this.configService.get<RedisOptions>('redis')),

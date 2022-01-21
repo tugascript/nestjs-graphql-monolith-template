@@ -12,8 +12,6 @@ import { JwtStrategy } from './jwt.strategy';
     PassportModule.register({ defaultStrategy: 'jwt' }),
     UsersModule,
     EmailModule,
-    // ConfigModule, // remove on testing
-    // CommonModule, // remove on testing
   ],
   providers: [AuthService, JwtStrategy, AuthResolver],
   controllers: [AuthController],

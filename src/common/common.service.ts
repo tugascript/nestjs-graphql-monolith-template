@@ -162,30 +162,6 @@ export class CommonService {
       throw new BadRequestException('Please use a valid point slug');
   }
 
-  /**
-   * Validate JWT
-   *
-   * Validates if input is a valid Json Web Token
-   */
-  public validateJWT(token: string): void {
-    const jwtRegex = /^[A-Za-z0-9-_=]+\.[A-Za-z0-9-_=]+\.?[A-Za-z0-9-_.+/=]*$/;
-
-    if (!jwtRegex.test(token))
-      throw new BadRequestException('Please use a valid token');
-  }
-
-  /**
-   * Validate Email
-   *
-   * Validates if an email is valid
-   */
-  public validateEmail(email: string): void {
-    const mailRegex = /^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,4}$/;
-
-    if (!mailRegex.test(email))
-      throw new BadRequestException('Please use a valid email');
-  }
-
   //-------------------- Entity Validations --------------------
 
   /**

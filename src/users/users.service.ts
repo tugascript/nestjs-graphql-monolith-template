@@ -177,4 +177,15 @@ export class UsersService {
       this.commonService.throwDuplicateError(error, 'Email already exists');
     }
   }
+
+  /**
+   * Delete User
+   *
+   * Removes user from db
+   */
+  public async deleteUser(user: UserEntity): Promise<void> {
+    await this.commonService.throwInternalError(
+      this.usersRepository.removeAndFlush(user),
+    );
+  }
 }

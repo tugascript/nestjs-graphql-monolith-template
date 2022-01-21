@@ -102,4 +102,13 @@ export class AuthResolver {
   ): Promise<AuthType> {
     return this.authService.updatePassword(res, userId, dto);
   }
+
+  @Mutation(() => LocalMessageType)
+  public async deleteAccount(
+    @GetRes() res: Response,
+    @CurrentUser() userId: number,
+    @Args('password') password: string,
+  ): Promise<LocalMessageType> {
+    return this.authService.deleteAccount(res, userId, password);
+  }
 }

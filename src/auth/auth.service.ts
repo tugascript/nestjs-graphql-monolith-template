@@ -11,14 +11,14 @@ import { compare, hash } from 'bcrypt';
 import { Cache } from 'cache-manager';
 import { Request, Response } from 'express';
 import { sign, verify } from 'jsonwebtoken';
-import { CommonService } from 'src/common/common.service';
-import { LocalMessageType } from 'src/common/gql-types/message.type';
-import { getUnixTime } from 'src/common/helpers/get-unix-time';
-import { OnlineStatusEnum } from 'src/users/enums/online-status.enum';
-import { v5 as uuidV5, v4 as uuidV4 } from 'uuid';
+import { v4 as uuidV4, v5 as uuidV5 } from 'uuid';
+import { CommonService } from '../common/common.service';
+import { LocalMessageType } from '../common/gql-types/message.type';
+import { getUnixTime } from '../common/helpers/get-unix-time';
 import { IJwt, ISingleJwt } from '../config/config';
 import { EmailService } from '../email/email.service';
 import { UserEntity } from '../users/entities/user.entity';
+import { OnlineStatusEnum } from '../users/enums/online-status.enum';
 import { UsersService } from '../users/users.service';
 import { ChangeEmailDto } from './dtos/change-email.dto';
 import { ChangePasswordDto } from './dtos/change-password.input';
@@ -313,6 +313,11 @@ export class AuthService {
     return new AuthType(accessToken, user);
   }
 
+  /**
+   * Update Password
+   *
+   * Change current user password
+   */
   public async updatePassword(
     res: Response,
     userId: number,
@@ -336,6 +341,31 @@ export class AuthService {
     this.saveRefreshCookie(res, refreshToken);
 
     return new AuthType(accessToken, user);
+  }
+
+  /**
+   * Delete Account
+   *
+   * Deletes current user account
+   */
+  public async deleteAccount(
+    res: Response,
+    userId: number,
+    password: string,
+  ): Promise<LocalMessageType> {
+    const user = await this.usersService.getUserById(userId);
+
+    if (password.length > 1 && !(await compare(password, user.password)))
+      throw new BadRequestException('Wrong password!');
+
+    res.clearCookie(this.cookieName);
+
+    try {
+      await this.cacheManager.del(uuidV5(userId.toString(), this.wsNamespace));
+    } catch (_) {}
+
+    await this.usersService.deleteUser(user);
+    return new LocalMessageType('Account deleted successfully');
   }
 
   //____________________ WebSocket Auth ____________________

@@ -23,6 +23,7 @@ type Mutation {
   changeTwoFactorAuthentication(activate: Boolean!): Message!
   confirmEmail(confirmationToken: String!): Auth!
   confirmUserLogin(accessCode: String!, email: String!): Auth!
+  deleteAccount(password: String!): Message!
   loginUser(input: LoginInput!): AuthUnion!
   logoutUser: Message!
   registerUser(input: RegisterInput!): Message!
@@ -68,7 +69,7 @@ type User {
   lastLogin: String!
   lastOnline: String!
   name: String!
-  onlineState: OnlineStatusEnum!
+  onlineStatus: OnlineStatusEnum!
   picture: String
   updatedAt: String!
   username: String!
