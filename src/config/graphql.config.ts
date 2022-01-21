@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { GqlModuleOptions, GqlOptionsFactory } from '@nestjs/graphql';
 import { BaseRedisCache } from 'apollo-server-cache-redis';
@@ -6,16 +6,23 @@ import { ApolloServerPluginCacheControl } from 'apollo-server-core';
 import responseCachePlugin from 'apollo-server-plugin-response-cache';
 import * as Redis from 'ioredis';
 import { RedisOptions } from 'ioredis';
+import { OnlineStatusEnum } from 'src/users/enums/online-status.enum';
+import { AuthService } from '../auth/auth.service';
 import { ICtx } from '../common/interfaces/ctx.interface';
+import { Request } from 'express';
+import { ISubscriptionCtx } from 'src/common/interfaces/subscription-ctx.interface';
 
 @Injectable()
 export class GraphQLConfig implements GqlOptionsFactory {
-  constructor(private readonly configService: ConfigService) {}
+  constructor(
+    private readonly configService: ConfigService,
+    private readonly authService: AuthService,
+  ) {}
 
   private readonly cookieName =
     this.configService.get<string>('REFRESH_COOKIE');
 
-  createGqlOptions(): GqlModuleOptions {
+  public createGqlOptions(): GqlModuleOptions {
     return {
       context: ({ req, res }): ICtx => ({
         req,
@@ -40,6 +47,56 @@ export class GraphQLConfig implements GqlOptionsFactory {
         : new BaseRedisCache({
             client: new Redis(this.configService.get<RedisOptions>('redis')),
           }),
+      subscriptions: {
+        'graphql-ws': {
+          onConnect: async (ctx) => {
+            const token = ctx?.connectionParams?.token as string | undefined;
+
+            if (!token) throw new UnauthorizedException();
+
+            await this.setHeader(
+              (ctx.extra as ISubscriptionCtx).request,
+              token,
+              ctx?.connectionParams?.status as OnlineStatusEnum | undefined,
+            );
+          },
+          onSubscribe: (ctx, message) => {
+            (ctx.extra as ISubscriptionCtx).payload = message.payload;
+          },
+          onClose: async (ctx) => {
+            const token = (
+              ctx.extra as ISubscriptionCtx
+            ).request.headers.authorization?.split(' ')[1] as string;
+
+            if (token) await this.authService.closeUserSession(token);
+          },
+        },
+      },
     };
+  }
+
+  private async setHeader(
+    req: Request,
+    token: string,
+    status?: OnlineStatusEnum,
+  ): Promise<void> {
+    const cookieArr: string[] = req.headers.cookie?.split('; ') ?? [];
+
+    if (cookieArr.length > 0) {
+      for (const cookie of cookieArr) {
+        if (cookie.startsWith(`${this.cookieName}=`)) {
+          const refreshToken = cookie.split('=')[1];
+          const wsToken = await this.authService.generateWsAccessToken(
+            token,
+            refreshToken,
+            status,
+          );
+          req.headers.authorization = `Bearer ${wsToken}`;
+          return;
+        }
+      }
+    }
+
+    throw new UnauthorizedException();
   }
 }

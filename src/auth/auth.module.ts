@@ -1,27 +1,25 @@
+import { MikroOrmModule } from '@mikro-orm/nestjs';
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
-import { JwtModule } from '@nestjs/jwt';
-import { UsersModule } from '../users/users.module';
-import { JwtServiceConfig } from '../config/jwt.config';
-import { EmailModule } from '../email/email.module';
-import { AuthService } from './auth.service';
-import { JwtStrategy } from './jwt.strategy';
 import { PassportModule } from '@nestjs/passport';
+import { EmailModule } from '../email/email.module';
+import { UsersModule } from '../users/users.module';
 import { AuthController } from './auth.controller';
 import { AuthResolver } from './auth.resolver';
+import { AuthService } from './auth.service';
+import { SessionEntity } from './entities/session.entity';
+import { JwtStrategy } from './jwt.strategy';
 
 @Module({
   imports: [
-    JwtModule.registerAsync({
-      imports: [ConfigModule],
-      useClass: JwtServiceConfig,
-    }),
+    MikroOrmModule.forFeature([SessionEntity]),
     PassportModule.register({ defaultStrategy: 'jwt' }),
     UsersModule,
     EmailModule,
     // ConfigModule, // remove on testing
+    // CommonModule, // remove on testing
   ],
   providers: [AuthService, JwtStrategy, AuthResolver],
   controllers: [AuthController],
+  exports: [AuthService],
 })
 export class AuthModule {}

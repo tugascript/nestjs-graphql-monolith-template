@@ -14,6 +14,7 @@ import { GraphQLConfig } from './config/graphql.config';
 import { APP_GUARD } from '@nestjs/core';
 import { GraphQLAuthGuard } from './auth/guards/gql.guard';
 import { UploaderModule } from './uploader/uploader.module';
+import { PubsubModule } from './pubsub/pubsub.module';
 
 @Module({
   imports: [
@@ -32,7 +33,7 @@ import { UploaderModule } from './uploader/uploader.module';
       useClass: CacheConfig,
     }),
     GraphQLModule.forRootAsync({
-      imports: [ConfigModule],
+      imports: [ConfigModule, AuthModule],
       useClass: GraphQLConfig,
     }),
     UsersModule,
@@ -40,6 +41,7 @@ import { UploaderModule } from './uploader/uploader.module';
     AuthModule,
     EmailModule,
     UploaderModule,
+    PubsubModule,
   ],
   providers: [
     {

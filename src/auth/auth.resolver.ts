@@ -1,18 +1,21 @@
 import { ParseBoolPipe } from '@nestjs/common';
-import { Args, Context, Mutation, Resolver } from '@nestjs/graphql';
+import { Args, Mutation, Resolver } from '@nestjs/graphql';
+import { Response } from 'express';
 import { LocalMessageType } from '../common/gql-types/message.type';
-import { ICtx } from '../common/interfaces/ctx.interface';
 import { AuthService } from './auth.service';
 import { CurrentUser } from './decorators/current-user.decorator';
+import { GetRes } from './decorators/get-res.decorator';
 import { Public } from './decorators/public.decorator';
+import { ChangeEmailDto } from './dtos/change-email.dto';
+import { ChangePasswordDto } from './dtos/change-password.input';
 import { ConfirmEmailDto } from './dtos/confirm-email.dto';
+import { ConfirmLoginDto } from './dtos/confirm-login.dto';
 import { ResetEmailDto } from './dtos/reset-email.dto';
+import { ResetPasswordDto } from './dtos/reset-password.dto';
 import { AuthUnion } from './gql-types/auth-union.type';
 import { AuthType } from './gql-types/auth.type';
-import { ConfirmLoginInput } from './inputs/confirm-login.input';
 import { LoginInput } from './inputs/login.input';
 import { RegisterInput } from './inputs/register.input';
-import { ResetPasswordInput } from './inputs/reset-password.input';
 
 @Resolver(() => AuthType)
 export class AuthResolver {
@@ -29,7 +32,7 @@ export class AuthResolver {
   @Public()
   @Mutation(() => AuthType)
   public async confirmEmail(
-    @Context() { res }: ICtx,
+    @GetRes() res: Response,
     @Args() dto: ConfirmEmailDto,
   ): Promise<AuthType> {
     return this.authService.confirmEmail(res, dto);
@@ -38,7 +41,7 @@ export class AuthResolver {
   @Public()
   @Mutation(() => AuthUnion)
   public async loginUser(
-    @Context() { res }: ICtx,
+    @GetRes() res: Response,
     @Args('input') input: LoginInput,
   ): Promise<AuthType | LocalMessageType> {
     return this.authService.loginUser(res, input);
@@ -47,14 +50,14 @@ export class AuthResolver {
   @Public()
   @Mutation(() => AuthType)
   public async confirmUserLogin(
-    @Context() { res }: ICtx,
-    @Args('input') input: ConfirmLoginInput,
+    @GetRes() res: Response,
+    @Args() dto: ConfirmLoginDto,
   ): Promise<AuthType> {
-    return this.authService.confirmLogin(res, input);
+    return this.authService.confirmLogin(res, dto);
   }
 
   @Mutation(() => LocalMessageType)
-  public async logoutUser(@Context() { res }: ICtx): Promise<LocalMessageType> {
+  public async logoutUser(@GetRes() res: Response): Promise<LocalMessageType> {
     return this.authService.logoutUser(res);
   }
 
@@ -69,9 +72,9 @@ export class AuthResolver {
   @Public()
   @Mutation(() => LocalMessageType)
   public async resetPassword(
-    @Args('input') input: ResetPasswordInput,
+    @Args() dto: ResetPasswordDto,
   ): Promise<LocalMessageType> {
-    return this.authService.resetPassword(input);
+    return this.authService.resetPassword(dto);
   }
 
   @Mutation(() => LocalMessageType)
@@ -80,5 +83,23 @@ export class AuthResolver {
     @Args('activate', ParseBoolPipe) activate: boolean,
   ) {
     return this.authService.changeTwoFactorAuth(userId, activate);
+  }
+
+  @Mutation(() => AuthType)
+  public async updateEmail(
+    @GetRes() res: Response,
+    @CurrentUser() userId: number,
+    @Args() dto: ChangeEmailDto,
+  ): Promise<AuthType> {
+    return this.authService.updateEmail(res, userId, dto);
+  }
+
+  @Mutation(() => AuthType)
+  public async updatePassword(
+    @GetRes() res: Response,
+    @CurrentUser() userId: number,
+    @Args() dto: ChangePasswordDto,
+  ): Promise<AuthType> {
+    return this.authService.updatePassword(res, userId, dto);
   }
 }

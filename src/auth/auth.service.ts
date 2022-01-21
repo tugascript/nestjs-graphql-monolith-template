@@ -1,3 +1,5 @@
+import { InjectRepository } from '@mikro-orm/nestjs';
+import { EntityRepository } from '@mikro-orm/postgresql';
 import {
   BadRequestException,
   CACHE_MANAGER,
@@ -7,25 +9,34 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { JwtService } from '@nestjs/jwt';
 import { compare, hash } from 'bcrypt';
 import { Cache } from 'cache-manager';
 import { Request, Response } from 'express';
 import { sign, verify } from 'jsonwebtoken';
+import { CommonService } from 'src/common/common.service';
 import { LocalMessageType } from 'src/common/gql-types/message.type';
+import { getUnixTime } from 'src/common/helpers/get-unix-time';
+import { OnlineStatusEnum } from 'src/users/enums/online-status.enum';
 import { v5 as uuidV5 } from 'uuid';
 import { IJwt, ISingleJwt } from '../config/config';
 import { EmailService } from '../email/email.service';
 import { UserEntity } from '../users/entities/user.entity';
 import { UsersService } from '../users/users.service';
+import { ChangeEmailDto } from './dtos/change-email.dto';
+import { ChangePasswordDto } from './dtos/change-password.input';
 import { ConfirmEmailDto } from './dtos/confirm-email.dto';
+import { ConfirmLoginDto } from './dtos/confirm-login.dto';
 import { ResetEmailDto } from './dtos/reset-email.dto';
+import { ResetPasswordDto } from './dtos/reset-password.dto';
+import { SessionEntity } from './entities/session.entity';
 import { AuthType } from './gql-types/auth.type';
-import { ConfirmLoginInput } from './inputs/confirm-login.input';
 import { LoginInput } from './inputs/login.input';
 import { RegisterInput } from './inputs/register.input';
-import { ResetPasswordInput } from './inputs/reset-password.input';
-import { IAccessPayload } from './interfaces/access-payload.interface';
+import {
+  IAccessPayload,
+  IAccessPayloadResponse,
+} from './interfaces/access-payload.interface';
+import { ISessionData } from './interfaces/session-data.interface';
 import {
   ITokenPayload,
   ITokenPayloadResponse,
@@ -34,10 +45,12 @@ import {
 @Injectable()
 export class AuthService {
   constructor(
+    @InjectRepository(SessionEntity)
+    private readonly sessionsRepository: EntityRepository<SessionEntity>,
     private readonly usersService: UsersService,
-    private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
     private readonly emailService: EmailService,
+    private readonly commonService: CommonService,
     @Inject(CACHE_MANAGER)
     private readonly cacheManager: Cache,
   ) {}
@@ -47,6 +60,8 @@ export class AuthService {
   private readonly url = this.configService.get<string>('url');
   private readonly authNamespace = this.configService.get<string>('AUTH_UUID');
   private readonly testing = this.configService.get<boolean>('testing');
+  private readonly accessTime =
+    this.configService.get<number>('jwt.access.time');
 
   //____________________ MUTATIONS ____________________
 
@@ -71,10 +86,10 @@ export class AuthService {
     res: Response,
     { confirmationToken }: ConfirmEmailDto,
   ): Promise<AuthType> {
-    const payload = await this.verifyJwtToken(
+    const payload = (await this.verifyAuthToken(
       confirmationToken,
       'confirmation',
-    );
+    )) as ITokenPayloadResponse;
     const user = await this.usersService.getUserByPayload(payload);
 
     if (user.confirmed)
@@ -116,14 +131,12 @@ export class AuthService {
     if (user.twoFactor) {
       const code = this.generateAccessCode();
 
-      try {
-        await this.cacheManager.set(
+      await this.commonService.throwInternalError(
+        this.cacheManager.set(
           uuidV5(email, this.authNamespace),
           await hash(code, 5),
-        );
-      } catch (error) {
-        throw new InternalServerErrorException(error);
-      }
+        ),
+      );
 
       this.emailService.sendAccessCode(user, code);
 
@@ -147,16 +160,11 @@ export class AuthService {
    */
   public async confirmLogin(
     res: Response,
-    { email, accessCode }: ConfirmLoginInput,
+    { email, accessCode }: ConfirmLoginDto,
   ): Promise<AuthType> {
-    let hashedCode: string;
-    try {
-      hashedCode = await this.cacheManager.get<string>(
-        uuidV5(email, this.authNamespace),
-      );
-    } catch (error) {
-      throw new InternalServerErrorException(error);
-    }
+    const hashedCode = await this.commonService.throwInternalError(
+      this.cacheManager.get<string>(uuidV5(email, this.authNamespace)),
+    );
 
     if (!hashedCode || !(await compare(accessCode, hashedCode)))
       throw new UnauthorizedException('Access code is invalid or has expired');
@@ -197,7 +205,10 @@ export class AuthService {
     const token = req.cookies[this.cookieName];
     if (!token) throw new UnauthorizedException('Invalid refresh token');
 
-    const payload = await this.verifyJwtToken(token, 'refresh');
+    const payload = (await this.verifyAuthToken(
+      token,
+      'refresh',
+    )) as ITokenPayloadResponse;
     const user = await this.usersService.getUserByPayload(payload);
     const [accessToken, refreshToken] = await this.generateAuthTokens(user);
     this.saveRefreshCookie(res, refreshToken);
@@ -216,7 +227,7 @@ export class AuthService {
     const user = await this.usersService.getUncheckUser(email);
 
     if (user) {
-      const resetToken = await this.generateJwtToken(
+      const resetToken = await this.generateAuthToken(
         { id: user.id, count: user.count },
         'resetPassword',
       );
@@ -234,10 +245,14 @@ export class AuthService {
    */
   public async resetPassword({
     resetToken,
-    password1,
-    password2,
-  }: ResetPasswordInput): Promise<LocalMessageType> {
-    const payload = await this.verifyJwtToken(resetToken, 'resetPassword');
+    passwords,
+  }: ResetPasswordDto): Promise<LocalMessageType> {
+    const payload = (await this.verifyAuthToken(
+      resetToken,
+      'resetPassword',
+    )) as ITokenPayloadResponse;
+
+    const { password1, password2 } = passwords;
 
     if (password1 !== password2)
       throw new BadRequestException('Passwords do not match');
@@ -275,6 +290,187 @@ export class AuthService {
     );
   }
 
+  /**
+   * Update Email
+   *
+   * Change current user email
+   */
+  public async updateEmail(
+    res: Response,
+    userId: number,
+    { email, password }: ChangeEmailDto,
+  ): Promise<AuthType> {
+    const user = await this.usersService.getUserById(userId);
+
+    if (!(await compare(password, user.password)))
+      throw new BadRequestException('Wrong password!');
+
+    user.email = email;
+    user.count++;
+    await this.usersService.saveUserToDb(user);
+
+    const [accessToken, refreshToken] = await this.generateAuthTokens(user);
+    this.saveRefreshCookie(res, refreshToken);
+
+    return new AuthType(accessToken, user);
+  }
+
+  public async updatePassword(
+    res: Response,
+    userId: number,
+    { password, newPasswords }: ChangePasswordDto,
+  ): Promise<AuthType> {
+    const user = await this.usersService.getUserById(userId);
+
+    if (!(await compare(password, user.password)))
+      throw new BadRequestException('Wrong password!');
+
+    const { password1, password2 } = newPasswords;
+
+    if (password1 !== password2)
+      throw new BadRequestException('Passwords do not match');
+
+    user.password = await hash(password1, 10);
+    user.count++;
+    await this.usersService.saveUserToDb(user);
+
+    const [accessToken, refreshToken] = await this.generateAuthTokens(user);
+    this.saveRefreshCookie(res, refreshToken);
+
+    return new AuthType(accessToken, user);
+  }
+
+  //____________________ WebSocket Auth ____________________
+
+  /**
+   * Generate Ws Access Token
+   *
+   * Takes a normal access token and a refresh token, and
+   * generates a ws access token for ws authentication
+   */
+  public async generateWsAccessToken(
+    accessToken: string,
+    refreshToken: string,
+    status?: OnlineStatusEnum,
+  ): Promise<string> {
+    await this.verifyAuthToken(accessToken, 'access');
+    const payload = (await this.verifyAuthToken(
+      refreshToken,
+      'refresh',
+    )) as ITokenPayloadResponse;
+    const user = await this.usersService.getUserByPayload(payload);
+
+    const session = this.sessionsRepository.create({ user });
+    if (user.onlineState === OnlineStatusEnum.OFFLINE || status)
+      user.onlineState = status ? status : OnlineStatusEnum.ONLINE;
+
+    await this.commonService.throwInternalError(
+      this.cacheManager.set<ISessionData>(session.id, {
+        count: user.count,
+        time: getUnixTime(),
+      }),
+    );
+
+    await this.commonService.throwInternalError(
+      this.sessionsRepository.persistAndFlush(session),
+    );
+
+    return await this.generateAuthToken(
+      { id: user.id, sessionId: session.id },
+      'wsAccess',
+    );
+  }
+
+  /**
+   * Refresh User Session
+   *
+   * Refreshes user's websocket session, if session expired or is
+   * invalid deletes it from cache and db, if it's the only one
+   * makes the user online status offline
+   */
+  public async refreshUserSession(userId: number, sessionId: string) {
+    const data = await this.commonService.throwInternalError(
+      this.cacheManager.get<ISessionData>(sessionId),
+    );
+
+    if (!data) {
+      await this.commonService.throwInternalError(
+        this.sessionsRepository.nativeDelete({
+          id: sessionId,
+        }),
+      );
+      throw new UnauthorizedException('Invalid user session');
+    }
+
+    const { count, time } = data;
+    const now = getUnixTime();
+
+    if (now - time > this.accessTime) {
+      const user = await this.usersService.getUserById(userId);
+
+      if (user.count !== count) {
+        await this.commonService.throwInternalError(
+          this.sessionsRepository.nativeDelete({
+            id: sessionId,
+          }),
+        );
+
+        await this.commonService.throwInternalError(
+          this.cacheManager.del(sessionId),
+        );
+
+        const sessionCount = await this.sessionsRepository.count({ user });
+        if (sessionCount === 0) {
+          user.onlineState = OnlineStatusEnum.OFFLINE;
+          await this.usersService.saveUserToDb(user);
+        }
+
+        throw new UnauthorizedException('Session has expired');
+      }
+
+      data.time = now;
+      await this.commonService.throwInternalError(
+        this.cacheManager.set<ISessionData>(sessionId, data),
+      );
+    }
+  }
+
+  /**
+   * Close User Session
+   *
+   * Removes websocket session from cache and db, if its the only
+   * one, makes the user online status ofline
+   */
+  public async closeUserSession(wsAccessToken: string): Promise<void> {
+    const payload = (await this.verifyAuthToken(
+      wsAccessToken,
+      'access',
+    )) as IAccessPayloadResponse;
+    const { sessionId, id } = payload;
+
+    if (!sessionId) throw new UnauthorizedException('Invalid session id');
+    const session = await this.sessionsRepository.findOne({ id: sessionId }, [
+      'user',
+    ]);
+
+    if (!session) throw new UnauthorizedException('Invalid session id');
+
+    const user = session.user;
+
+    await this.commonService.throwInternalError(
+      this.sessionsRepository.removeAndFlush(session),
+    );
+    await this.commonService.throwInternalError(
+      this.cacheManager.del(sessionId),
+    );
+
+    const count = await this.sessionsRepository.count({ user: id });
+    if (count === 0) {
+      user.onlineState = OnlineStatusEnum.OFFLINE;
+      await this.usersService.saveUserToDb(user);
+    }
+  }
+
   //____________________ PRIVATE METHODS ____________________
 
   /**
@@ -284,7 +480,7 @@ export class AuthService {
    * his account after registration
    */
   private async sendConfirmationEmail(user: UserEntity): Promise<string> {
-    const emailToken = await this.generateJwtToken(
+    const emailToken = await this.generateAuthToken(
       { id: user.id, count: user.count },
       'confirmation',
     );
@@ -306,19 +502,9 @@ export class AuthService {
     count,
   }: UserEntity): Promise<[string, string]> {
     return Promise.all([
-      this.generateAccessToken({ id }),
-      this.generateJwtToken({ id, count }, 'refresh'),
+      this.generateAuthToken({ id }, 'access'),
+      this.generateAuthToken({ id, count }, 'refresh'),
     ]);
-  }
-
-  /**
-   * Generate Access Token
-   *
-   * Takes the built in nestjs jwt and creates the access token
-   */
-  private async generateAccessToken(payload: IAccessPayload): Promise<string> {
-    const token = await this.jwtService.sign(payload);
-    return token;
   }
 
   /**
@@ -327,8 +513,8 @@ export class AuthService {
    * A generict jwt generator that generates all tokens needed
    * for auth (access, refresh, confirmation & resetPassword)
    */
-  private async generateJwtToken(
-    payload: ITokenPayload,
+  private async generateAuthToken(
+    payload: ITokenPayload | IAccessPayload,
     type: keyof IJwt,
   ): Promise<string> {
     const { secret, time } = this.configService.get<ISingleJwt>(`jwt.${type}`);
@@ -344,14 +530,14 @@ export class AuthService {
   }
 
   /**
-   * Verify Jwt Token
+   * Verify Auth Token
    *
    * A generic jwt verifier that verifies all token needed for auth
    */
-  private async verifyJwtToken(
+  private async verifyAuthToken(
     token: string,
     type: keyof IJwt,
-  ): Promise<ITokenPayloadResponse> {
+  ): Promise<ITokenPayloadResponse | IAccessPayloadResponse> {
     const secret = this.configService.get<string>(`jwt.${type}.secret`);
 
     return await new Promise((resolve) => {

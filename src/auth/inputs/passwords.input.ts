@@ -1,12 +1,8 @@
 import { Field, InputType } from '@nestjs/graphql';
-import { IsJWT, IsString, Length, Matches, MinLength } from 'class-validator';
+import { IsString, Length, Matches, MinLength } from 'class-validator';
 
-@InputType('ResetPasswordInput')
-export abstract class ResetPasswordInput {
-  @Field(() => String)
-  @IsJWT()
-  public resetToken!: string;
-
+@InputType('PasswordsInput')
+export abstract class PasswordsInput {
   @Field(() => String)
   @IsString()
   @Length(8, 35)

@@ -231,6 +231,8 @@ export class CommonService {
     repository.persist(entity);
   }
 
+  //-------------------- Error Handling --------------------
+
   /**
    * Throw Duplicate Error
    *
@@ -241,5 +243,18 @@ export class CommonService {
     if (error.code === '23505')
       throw new ConflictException(message ?? 'Duplicated value in database');
     throw new BadRequestException(error.message);
+  }
+
+  /**
+   * Throw Internal Error
+   *
+   * Function to abstract throwing internal server exception
+   */
+  public async throwInternalError<T>(promise: Promise<T>): Promise<T> {
+    try {
+      return await promise;
+    } catch (error) {
+      throw new InternalServerErrorException(error);
+    }
   }
 }

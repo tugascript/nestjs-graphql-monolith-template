@@ -1,5 +1,4 @@
 import { MikroOrmModuleOptions } from '@mikro-orm/nestjs';
-import { JwtModuleOptions } from '@nestjs/jwt';
 import { S3ClientConfig } from '@aws-sdk/client-s3';
 import { UploadOptions } from 'graphql-upload';
 import * as Redis from 'ioredis';
@@ -14,6 +13,7 @@ export interface IJwt {
   confirmation: ISingleJwt;
   resetPassword: ISingleJwt;
   refresh: ISingleJwt;
+  wsAccess: ISingleJwt;
 }
 
 interface IEmailAuth {
@@ -34,7 +34,6 @@ export interface IConfig {
   url: string;
   db: MikroOrmModuleOptions;
   jwt: IJwt;
-  jwtService: JwtModuleOptions;
   emailService: IEmailConfig;
   bucketConfig: S3ClientConfig;
   redis: Redis.RedisOptions | null;
@@ -45,7 +44,6 @@ export interface IConfig {
 
 export const config = (): IConfig => {
   const TESTING = process.env.NODE_ENV !== 'production';
-
   return {
     port: parseInt(process.env.PORT, 10),
     playground: process.env.PLAYGROUND === 'true',
@@ -67,11 +65,9 @@ export const config = (): IConfig => {
         secret: process.env.JWT_REFRESH_SECRET,
         time: parseInt(process.env.JWT_REFRESH_TIME, 10),
       },
-    },
-    jwtService: {
-      secret: process.env.JWT_ACCESS_SECRET,
-      signOptions: {
-        expiresIn: parseInt(process.env.JWT_ACCESS_TIME, 10),
+      wsAccess: {
+        secret: process.env.JWT_ACCESS_SECRET,
+        time: parseInt(process.env.JWT_WS_ACCESS_TIME, 10),
       },
     },
     emailService: {
@@ -86,7 +82,7 @@ export const config = (): IConfig => {
     bucketConfig: {
       forcePathStyle: false,
       region: process.env.BUCKET_REGION,
-      endpoint: `${process.env.BUCKET_REGION}.linodeobjects.com`,
+      endpoint: `https://${process.env.BUCKET_REGION}.linodeobjects.com`,
       credentials: {
         accessKeyId: process.env.BUCKET_ACCESS_KEY,
         secretAccessKey: process.env.BUCKET_SECRET_KEY,

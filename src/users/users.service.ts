@@ -5,11 +5,13 @@ import {
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
-import { RegisterInput } from '../auth/inputs/register.input';
-import { CommonService } from '../common/common.service';
 import { hash } from 'bcrypt';
+import { UploaderService } from 'src/uploader/uploader.service';
+import { RegisterInput } from '../auth/inputs/register.input';
+import { ITokenPayload } from '../auth/interfaces/token-payload.interface';
+import { CommonService } from '../common/common.service';
+import { ProfilePictureDto } from './dtos/profile-picture.dto';
 import { UserEntity } from './entities/user.entity';
-import { ITokenPayload } from 'src/auth/interfaces/token-payload.interface';
 
 @Injectable()
 export class UsersService {
@@ -17,6 +19,7 @@ export class UsersService {
     @InjectRepository(UserEntity)
     private readonly usersRepository: EntityRepository<UserEntity>,
     private readonly commonService: CommonService,
+    private readonly uploaderService: UploaderService,
   ) {}
 
   //____________________ MUTATIONS ____________________
@@ -52,6 +55,27 @@ export class UsersService {
     });
 
     await this.saveUserToDb(user, true);
+    return user;
+  }
+
+  /**
+   * Update Profile Picture
+   *
+   * Updates the current user profile picture and deletes
+   * the old one if it exits
+   */
+  public async updateProfilePicture(
+    userId: number,
+    { picture }: ProfilePictureDto,
+  ): Promise<UserEntity> {
+    const user = await this.getUserById(userId);
+    const toDelete = user.picture;
+
+    user.picture = await this.uploaderService.uploadImage(userId, picture, 1);
+
+    if (toDelete) await this.uploaderService.deleteFile(toDelete);
+
+    await this.saveUserToDb(user);
     return user;
   }
 
