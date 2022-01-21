@@ -8,17 +8,24 @@ Full boiler plate of a NestJS, GraphQL and PostgreSQL (with Mikro-ORM) monolithi
 It implements:
 
 - Authentication:
-- - JWT Authentication for HTTP
-- - Session Authentication for Websockets
-- - Two-Factor authentication with email
+
+* JWT Authentication for HTTP
+* Session Authentication for Websockets
+* Two-Factor authentication with email
+
 - Uploader:
-- - Basic image only uploader with Sharp optimizations for a Linode Bucket (it can be changed for AWS S3)
+
+* Basic image only uploader with Sharp optimizations for a Linode Bucket (it can be changed for AWS S3)
+
 - Pagination:
-- - Has the generics for Edges and Paginated types
-- - A basic cursor pagination function
+
+* Has the generics for Edges and Paginated types
+* A basic cursor pagination function
+
 - Subscriptions and GraphQL through Websockets:
-- - A basic pubsub module
-- - Sessions with a way to see online status
+
+* A basic pubsub module
+* Sessions with a way to see online status
 
 ## Installation
 
