@@ -12,7 +12,7 @@ It implements:
 - - Session Authentication for Websockets
 - - Two-Factor authentication with email
 - Uploader:
-- - Basic still image only uploader for a Linode Bucket (it can be changed for AWS S3)
+- - Basic image only uploader with Sharp optimizations for a Linode Bucket (it can be changed for AWS S3)
 - Pagination:
 - - Has the generics for Edges and Paginated types
 - - A basic cursor pagination function
@@ -69,6 +69,8 @@ $ yarn run test:cov
 Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
 
 Mikro-ORM is a TypeScript ORM for Node.js based on Data Mapper, Unit of Work and Identity Map patterns. If you like MikroORM, give it a [star](https://github.com/mikro-orm/mikro-orm) on GitHub and consider [sponsoring](https://github.com/sponsors/B4nan) its development!
+
+[Sharp](https://github.com/lovell/sharp) is a high performance Node.js image processor. If you want to [support them.](https://opencollective.com/libvips)
 
 ## License
 
