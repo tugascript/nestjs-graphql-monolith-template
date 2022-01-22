@@ -9,6 +9,8 @@ import {
 import { validate } from 'class-validator';
 import slugify from 'slugify';
 import { v4 as uuidV4 } from 'uuid';
+import { NotificationTypeEnum } from './enums/notification-type.enum';
+import { INotification } from './interfaces/notification.interface';
 import { IEdge, IPaginated } from './interfaces/paginated.interface';
 
 @Injectable()
@@ -113,6 +115,25 @@ export class CommonService {
     }
 
     return str;
+  }
+
+  //-------------------- Notification Generation --------------------
+
+  /**
+   * Generate Notification
+   *
+   * Generates an entity notification
+   */
+  public generateNotification<T>(
+    entity: T,
+    nType: NotificationTypeEnum,
+    cursor: keyof T,
+    innerCursor?: string,
+  ): INotification<T> {
+    return {
+      edge: this.createEdge(entity, cursor, innerCursor),
+      type: nType,
+    };
   }
 
   //-------------------- String Formating --------------------
