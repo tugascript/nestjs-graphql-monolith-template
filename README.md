@@ -5,10 +5,16 @@
 Full boiler plate of a NestJS, GraphQL and PostgreSQL (with Mikro-ORM) monolithic backend app.
 It implements:
 
+- Configuration (adds most used config classes):
+
+* - Cache with Redis
+* - GraphQL with dataloaders, subscriptions and GraphQL through Websockets
+* - MikroORM with SQLite in development and PostgreSQL in production
+
 - Authentication:
 
 * - JWT Authentication for HTTP
-* - Session Authentication for Websockets
+* - Custom Session Authentication for Websockets (based on Facebook Messenger Design)
 * - Two-Factor authentication with email
 
 - Uploader:
@@ -18,12 +24,7 @@ It implements:
 - Pagination:
 
 * - Has the generics for Edges and Paginated types
-* - A basic cursor pagination function
-
-- Subscriptions and GraphQL through Websockets:
-
-* - A basic pubsub module
-* - Sessions with a way to see online status
+* - A basic one way cursor pagination function
 
 ## Installation
 

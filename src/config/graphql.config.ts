@@ -6,10 +6,10 @@ import { ApolloServerPluginCacheControl } from 'apollo-server-core';
 import responseCachePlugin from 'apollo-server-plugin-response-cache';
 import { Request } from 'express';
 import * as Redis from 'ioredis';
-import { RedisOptions } from 'ioredis';
 import { AuthService } from '../auth/auth.service';
 import { ICtx } from '../common/interfaces/ctx.interface';
 import { ISubscriptionCtx } from '../common/interfaces/subscription-ctx.interface';
+import { DataloadersService } from '../dataloaders/dataloaders.service';
 import { OnlineStatusEnum } from '../users/enums/online-status.enum';
 
 @Injectable()
@@ -17,6 +17,7 @@ export class GraphQLConfig implements GqlOptionsFactory {
   constructor(
     private readonly configService: ConfigService,
     private readonly authService: AuthService,
+    private readonly loadersService: DataloadersService,
   ) {}
 
   private readonly cookieName =
@@ -28,6 +29,7 @@ export class GraphQLConfig implements GqlOptionsFactory {
       context: ({ req, res }): ICtx => ({
         req,
         res,
+        loaders: this.loadersService.createLoaders(),
       }),
       path: '/api/graphql',
       autoSchemaFile: './schema.gql',
@@ -46,7 +48,9 @@ export class GraphQLConfig implements GqlOptionsFactory {
       cache: this.testing
         ? undefined
         : new BaseRedisCache({
-            client: new Redis(this.configService.get<RedisOptions>('redis')),
+            client: new Redis(
+              this.configService.get<Redis.RedisOptions>('redis'),
+            ),
           }),
       subscriptions: {
         'graphql-ws': {
@@ -63,6 +67,8 @@ export class GraphQLConfig implements GqlOptionsFactory {
           },
           onSubscribe: (ctx, message) => {
             (ctx.extra as ISubscriptionCtx).payload = message.payload;
+            (ctx.extra as ISubscriptionCtx).loaders =
+              this.loadersService.createLoaders();
           },
           onClose: async (ctx) => {
             const token = (
