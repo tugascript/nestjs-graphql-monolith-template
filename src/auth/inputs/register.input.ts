@@ -1,5 +1,6 @@
 import { Field, InputType } from '@nestjs/graphql';
 import { IsEmail, IsString, Length, Matches, MinLength } from 'class-validator';
+import { NAME_REGEX, PASSWORD_REGEX } from '../../common/constants/regex';
 
 @InputType('RegisterInput')
 export abstract class RegisterInput {
@@ -8,7 +9,7 @@ export abstract class RegisterInput {
   @Length(3, 100, {
     message: 'Name has to be between 3 and 50 characters.',
   })
-  @Matches(/(^[\p{L}0-9'.\s]*$)/u, {
+  @Matches(NAME_REGEX, {
     message: 'Name can only contain letters, dots, numbers and spaces.',
   })
   public name!: string;
@@ -20,7 +21,7 @@ export abstract class RegisterInput {
   @Field(() => String)
   @IsString()
   @Length(8, 35)
-  @Matches(/((?=.*\d)|(?=.*\W+))(?![.\n])(?=.*[A-Z])(?=.*[a-z]).*$/, {
+  @Matches(PASSWORD_REGEX, {
     message:
       'Password requires a lowercase letter, an uppercase letter, and a number or symbol',
   })

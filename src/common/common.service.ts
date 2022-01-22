@@ -1,5 +1,4 @@
 import { Dictionary } from '@mikro-orm/core';
-import { EntityRepository } from '@mikro-orm/postgresql';
 import {
   BadRequestException,
   ConflictException,
@@ -148,20 +147,6 @@ export class CommonService {
     return slugify(`${str} ${uuidV4().substring(0, 6)}`, { lower: true });
   }
 
-  //-------------------- Field Validation --------------------
-
-  /**
-   * Validates Point Slug
-   *
-   * Validates if input is a valid slug seperated by dots
-   */
-  public validatePointSlug(slug: string): void {
-    const regex = /^[a-z0-9]+(?:\.[a-z0-9]+)*$/;
-
-    if (!regex.test(slug))
-      throw new BadRequestException('Please use a valid point slug');
-  }
-
   //-------------------- Entity Validations --------------------
 
   /**
@@ -183,28 +168,6 @@ export class CommonService {
 
     if (errors.length > 0)
       throw new BadRequestException('Entity validation failed');
-  }
-
-  /**
-   * Save Entity To Data Base
-   *
-   * Persists a entity or multiple entities into the db
-   */
-  public async saveEntityToDataBase<T>(
-    repository: EntityRepository<T>,
-    entity: T | T[],
-    flush = true,
-  ): Promise<void> {
-    if (flush) {
-      try {
-        await repository.persistAndFlush(entity);
-        return;
-      } catch (error) {
-        throw new InternalServerErrorException(error.message);
-      }
-    }
-
-    repository.persist(entity);
   }
 
   //-------------------- Error Handling --------------------
