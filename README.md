@@ -1,7 +1,5 @@
 # NestJS GraphQL Boilerplate
 
-NOTE: I added any tests, I'll write the tests this weekend so it can have several problems till then.
-
 ## Description
 
 Full boiler plate of a NestJS, GraphQL and PostgreSQL (with Mikro-ORM) monolithic backend app.
