@@ -1,5 +1,6 @@
 import { Type } from '@nestjs/common';
 import { Field, Int, ObjectType } from '@nestjs/graphql';
+import { Edge } from './edge.type';
 
 @ObjectType('PageInfo')
 abstract class PageInfoType {
@@ -10,15 +11,17 @@ abstract class PageInfoType {
   public hasNextPage: boolean;
 }
 
-// NOTE: Remember that it has to be an edge type class
 export function Paginated<T>(classRef: Type<T>): any {
+  @ObjectType(`${classRef.name}PageEdge`)
+  abstract class EdgeType extends Edge(classRef) {}
+
   @ObjectType({ isAbstract: true })
   abstract class PaginatedType {
     @Field(() => Int)
     public totalCount: number;
 
-    @Field(() => [classRef])
-    public edges: T[];
+    @Field(() => [EdgeType])
+    public edges: EdgeType[];
 
     @Field(() => PageInfoType)
     public pageInfo: PageInfoType;
