@@ -56,19 +56,29 @@ $ yarn run start:dev
 $ yarn run start:prod
 ```
 
-## Test
+## Unit Testing
 
-NOTE: I still have not written all test, I'll deploy all test on a single commit when they're ready
+NOTE: I still have not written all test
+
+BEFORE EACH TEST:
+
+- Check if NODE_ENV is not production
+- Remove the current test.db
+- Create a new test.db
+
+```bash
+# remove test.db
+$ rm test.db
+
+# create a new test.db
+$ yarn migrate:create
+```
+
+EACH TEST SHOULD BE RUN SEPERATLY
 
 ```bash
 # unit tests
-$ yarn run test
-
-# e2e tests
-$ yarn run test:e2e
-
-# test coverage
-$ yarn run test:cov
+$ yarn run test service-name.service.spec.ts --detectOpenHandles
 ```
 
 ## Support the frameworks used in this boilerplate

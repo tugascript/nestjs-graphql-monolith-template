@@ -13,7 +13,7 @@ export const GetRes = createParamDecorator(
 
     if (ctx.extra)
       throw new UnauthorizedException(
-        'Request does not exist in ws connection',
+        'Response does not exist in ws connection',
       );
 
     return ctx.res;
