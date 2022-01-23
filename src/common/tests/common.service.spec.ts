@@ -52,24 +52,6 @@ describe('CommonService', () => {
     });
   });
 
-  describe('validatePointSlug', () => {
-    it('should validate point slugs', () => {
-      const valid = 'petter.wacker.son.parker';
-      const invalid = 'petter.wacker.son-parker';
-      const valid2 = 'petter';
-      const invalid2 = 'petter.';
-
-      expect(() => service.validatePointSlug(valid)).not.toThrowError();
-      expect(() => service.validatePointSlug(invalid)).toThrowError(
-        'Please use a valid point slug',
-      );
-      expect(() => service.validatePointSlug(valid2)).not.toThrowError();
-      expect(() => service.validatePointSlug(invalid2)).toThrowError(
-        'Please use a valid point slug',
-      );
-    });
-  });
-
   it('should be defined', () => {
     expect(service).toBeDefined();
   });
