@@ -421,7 +421,7 @@ export class AuthService {
    * Close User Session
    *
    * Removes websocket session from cache and db, if its the only
-   * one, makes the user online status ofline
+   * one, makes the user online status offline
    */
   public async closeUserSession(wsAccessToken: string): Promise<void> {
     const payload = (await this.verifyAuthToken(
@@ -446,6 +446,9 @@ export class AuthService {
       await this.commonService.throwInternalError(
         this.cacheManager.del(userUuid),
       );
+      const user = await this.usersService.getUserById(id);
+      user.lastOnline = new Date();
+      await this.usersService.saveUserToDb(user);
       return;
     }
 
