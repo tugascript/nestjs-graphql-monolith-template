@@ -2,7 +2,6 @@ import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { GqlModuleOptions, GqlOptionsFactory } from '@nestjs/graphql';
 import { BaseRedisCache } from 'apollo-server-cache-redis';
-import { ApolloServerPluginCacheControl } from 'apollo-server-core';
 import responseCachePlugin from 'apollo-server-plugin-response-cache';
 import { Request } from 'express';
 import * as Redis from 'ioredis';
@@ -36,10 +35,7 @@ export class GraphQLConfig implements GqlOptionsFactory {
       sortSchema: true,
       bodyParserConfig: false,
       playground: this.configService.get<boolean>('playground'),
-      plugins: [
-        ApolloServerPluginCacheControl({ defaultMaxAge: 600 }),
-        responseCachePlugin(),
-      ],
+      plugins: [responseCachePlugin()],
       cors: {
         origin: this.configService.get<string>('url'),
         credentials: true,
