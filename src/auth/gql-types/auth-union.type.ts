@@ -6,8 +6,8 @@ export const AuthUnion = createUnionType({
   name: 'AuthUnion',
   types: () => [AuthType, LocalMessageType],
   resolveType(value) {
-    if ((value as AuthType).accessToken) return AuthType;
-    if ((value as LocalMessageType).message) return LocalMessageType;
+    if (value instanceof AuthType) return AuthType;
+    if (value instanceof LocalMessageType) return LocalMessageType;
     return null;
   },
 });
