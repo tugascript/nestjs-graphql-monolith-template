@@ -37,7 +37,7 @@ export class UserEntity extends LocalBaseEntity {
   @Matches(POINT_SLUG_REGEX)
   public username!: string;
 
-  @Field(() => String)
+  @Field(() => String, { nullable: true })
   @Property({ columnType: 'varchar(255)', unique: true })
   @IsEmail()
   public email!: string;

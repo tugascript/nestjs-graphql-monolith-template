@@ -58,4 +58,12 @@ export class UsersResolver {
   ): Promise<OnlineStatusEnum> {
     return this.usersService.getUserOnlineStatus(user.id);
   }
+
+  @ResolveField('email', () => String, { nullable: true })
+  public getEmail(
+    @Parent() user: UserEntity,
+    @CurrentUser() userId?: number,
+  ): string | null {
+    return userId && user.id === userId ? user.email : null;
+  }
 }

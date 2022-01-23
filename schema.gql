@@ -65,7 +65,7 @@ scalar Upload
 
 type User {
   createdAt: String!
-  email: String!
+  email: String
   id: Int!
   lastLogin: String!
   lastOnline: String!
