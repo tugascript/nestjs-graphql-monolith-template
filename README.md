@@ -88,4 +88,4 @@ Mikro-ORM is a TypeScript ORM for Node.js based on Data Mapper, Unit of Work and
 
 ## License
 
-This boilerplate code is [MIT licensed](LICENSE).
+This template is [MIT licensed](LICENSE).
