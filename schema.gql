@@ -30,11 +30,12 @@ type Mutation {
   resetPassword(passwords: PasswordsInput!, resetToken: String!): Message!
   sendResetPasswordEmail(email: String!): Message!
   updateEmail(email: String!, password: String!): Auth!
+  updateOnlineStatus(defaultStatus: OnlineStatus!): Message!
   updatePassword(newPasswords: PasswordsInput!, password: String!): Auth!
   updateProfilePicture(picture: Upload!): User!
 }
 
-enum OnlineStatusEnum {
+enum OnlineStatus {
   BUSY
   DO_NOT_DISTURB
   IDLE
@@ -69,7 +70,7 @@ type User {
   lastLogin: String!
   lastOnline: String!
   name: String!
-  onlineStatus: OnlineStatusEnum!
+  onlineStatus: OnlineStatus!
   picture: String
   updatedAt: String!
   username: String!

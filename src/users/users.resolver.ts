@@ -6,7 +6,11 @@ import {
   ResolveField,
   Resolver,
 } from '@nestjs/graphql';
+import { Response } from 'express';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { GetRes } from '../auth/decorators/get-res.decorator';
+import { LocalMessageType } from '../common/gql-types/message.type';
+import { OnlineStatusDto } from './dtos/online-status.dto';
 import { ProfilePictureDto } from './dtos/profile-picture.dto';
 import { UserEntity } from './entities/user.entity';
 import { OnlineStatusEnum } from './enums/online-status.enum';
@@ -22,6 +26,23 @@ export class UsersResolver {
     @Args() dto: ProfilePictureDto,
   ): Promise<UserEntity> {
     return this.usersService.updateProfilePicture(userId, dto);
+  }
+
+  @Mutation(() => LocalMessageType)
+  public async updateOnlineStatus(
+    @CurrentUser() userId: number,
+    @Args() dto: OnlineStatusDto,
+  ): Promise<LocalMessageType> {
+    return this.usersService.updateDefaultStatus(userId, dto);
+  }
+
+  @Mutation(() => LocalMessageType)
+  public async deleteAccount(
+    @GetRes() res: Response,
+    @CurrentUser() userId: number,
+    @Args('password') password: string,
+  ): Promise<LocalMessageType> {
+    return this.usersService.deleteUser(res, userId, password);
   }
 
   @Query(() => UserEntity)

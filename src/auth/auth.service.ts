@@ -18,7 +18,6 @@ import { getUnixTime } from '../common/helpers/get-unix-time';
 import { IJwt, ISingleJwt } from '../config/config';
 import { EmailService } from '../email/email.service';
 import { UserEntity } from '../users/entities/user.entity';
-import { OnlineStatusEnum } from '../users/enums/online-status.enum';
 import { UsersService } from '../users/users.service';
 import { ChangeEmailDto } from './dtos/change-email.dto';
 import { ChangePasswordDto } from './dtos/change-password.input';
@@ -343,31 +342,6 @@ export class AuthService {
     return new AuthType(accessToken, user);
   }
 
-  /**
-   * Delete Account
-   *
-   * Deletes current user account
-   */
-  public async deleteAccount(
-    res: Response,
-    userId: number,
-    password: string,
-  ): Promise<LocalMessageType> {
-    const user = await this.usersService.getUserById(userId);
-
-    if (password.length > 1 && !(await compare(password, user.password)))
-      throw new BadRequestException('Wrong password!');
-
-    res.clearCookie(this.cookieName);
-
-    try {
-      await this.cacheManager.del(uuidV5(userId.toString(), this.wsNamespace));
-    } catch (_) {}
-
-    await this.usersService.deleteUser(user);
-    return new LocalMessageType('Account deleted successfully');
-  }
-
   //____________________ WebSocket Auth ____________________
 
   /**
@@ -379,14 +353,14 @@ export class AuthService {
   public async generateWsAccessToken(
     accessToken: string,
     refreshToken: string,
-    status?: OnlineStatusEnum,
   ): Promise<string> {
     await this.verifyAuthToken(accessToken, 'access');
     const payload = (await this.verifyAuthToken(
       refreshToken,
       'refresh',
     )) as ITokenPayloadResponse;
-    const { id, count } = await this.usersService.getUserByPayload(payload);
+    const { id, count, defaultStatus } =
+      await this.usersService.getUserByPayload(payload);
     const userUuid = uuidV5(id.toString(), this.wsNamespace);
 
     let sessionData = await this.commonService.throwInternalError(
@@ -396,7 +370,7 @@ export class AuthService {
     if (!sessionData)
       sessionData = {
         count,
-        status: status ?? OnlineStatusEnum.ONLINE,
+        status: defaultStatus,
         sessions: {},
       };
 
@@ -414,7 +388,10 @@ export class AuthService {
    * invalid deletes it from cache and db, if it's the only one
    * makes the user online status offline
    */
-  public async refreshUserSession(userId: number, sessionId: string) {
+  public async refreshUserSession(
+    userId: number,
+    sessionId: string,
+  ): Promise<void> {
     const userUuid = uuidV5(userId.toString(), this.wsNamespace);
     const sessionData = await this.commonService.throwInternalError(
       this.cacheManager.get<ISessionData>(userUuid),

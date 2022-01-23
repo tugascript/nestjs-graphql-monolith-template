@@ -9,4 +9,4 @@ export enum OnlineStatusEnum {
   OFFLINE = 'OFFLINE',
 }
 
-registerEnumType(OnlineStatusEnum, { name: 'OnlineStatusEnum' });
+registerEnumType(OnlineStatusEnum, { name: 'OnlineStatus' });

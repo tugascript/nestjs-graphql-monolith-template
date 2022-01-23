@@ -10,7 +10,6 @@ import { AuthService } from '../auth/auth.service';
 import { ICtx } from '../common/interfaces/ctx.interface';
 import { ISubscriptionCtx } from '../common/interfaces/subscription-ctx.interface';
 import { DataloadersService } from '../dataloaders/dataloaders.service';
-import { OnlineStatusEnum } from '../users/enums/online-status.enum';
 
 @Injectable()
 export class GraphQLConfig implements GqlOptionsFactory {
@@ -62,7 +61,6 @@ export class GraphQLConfig implements GqlOptionsFactory {
             await this.setHeader(
               (ctx.extra as ISubscriptionCtx).request,
               token,
-              ctx?.connectionParams?.status as OnlineStatusEnum | undefined,
             );
           },
           onSubscribe: (ctx, message) => {
@@ -82,11 +80,7 @@ export class GraphQLConfig implements GqlOptionsFactory {
     };
   }
 
-  private async setHeader(
-    req: Request,
-    token: string,
-    status?: OnlineStatusEnum,
-  ): Promise<void> {
+  private async setHeader(req: Request, token: string): Promise<void> {
     const cookieArr: string[] = req.headers.cookie?.split('; ') ?? [];
 
     if (cookieArr.length > 0) {
@@ -96,7 +90,6 @@ export class GraphQLConfig implements GqlOptionsFactory {
           const wsToken = await this.authService.generateWsAccessToken(
             token,
             refreshToken,
-            status,
           );
           req.headers.authorization = `Bearer ${wsToken}`;
           return;

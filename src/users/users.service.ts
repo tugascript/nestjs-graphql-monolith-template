@@ -8,14 +8,17 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { hash } from 'bcrypt';
+import { compare, hash } from 'bcrypt';
 import { Cache } from 'cache-manager';
+import { Response } from 'express';
 import { v5 as uuidV5 } from 'uuid';
 import { RegisterInput } from '../auth/inputs/register.input';
 import { ISessionData } from '../auth/interfaces/session-data.interface';
 import { ITokenPayload } from '../auth/interfaces/token-payload.interface';
 import { CommonService } from '../common/common.service';
+import { LocalMessageType } from '../common/gql-types/message.type';
 import { UploaderService } from '../uploader/uploader.service';
+import { OnlineStatusDto } from './dtos/online-status.dto';
 import { ProfilePictureDto } from './dtos/profile-picture.dto';
 import { UserEntity } from './entities/user.entity';
 import { OnlineStatusEnum } from './enums/online-status.enum';
@@ -33,6 +36,10 @@ export class UsersService {
   ) {}
 
   private readonly wsNamespace = this.configService.get<string>('WS_UUID');
+  private readonly wsAccessTime =
+    this.configService.get<number>('jwt.wsAccess.time');
+  private readonly cookieName =
+    this.configService.get<string>('REFRESH_COOKIE');
 
   //____________________ MUTATIONS ____________________
 
@@ -89,6 +96,64 @@ export class UsersService {
 
     await this.saveUserToDb(user);
     return user;
+  }
+
+  /**
+   * Update Default Status
+   *
+   * Updates the defualt online status of current user
+   */
+  public async updateDefaultStatus(
+    userId: number,
+    { defaultStatus }: OnlineStatusDto,
+  ): Promise<LocalMessageType> {
+    const user = await this.getUserById(userId);
+    user.defaultStatus = defaultStatus;
+
+    const userUuid = uuidV5(userId.toString(), this.wsNamespace);
+    const sessionData = await this.commonService.throwInternalError(
+      this.cacheManager.get<ISessionData>(userUuid),
+    );
+
+    if (sessionData) {
+      sessionData.status = defaultStatus;
+      await this.commonService.throwInternalError(
+        this.cacheManager.set<ISessionData>(userUuid, sessionData, {
+          ttl: this.wsAccessTime,
+        }),
+      );
+    }
+
+    await this.saveUserToDb(user);
+    return new LocalMessageType('Default status changed successfully');
+  }
+
+  /**
+   * Delete User
+   *
+   * Deletes current user account
+   */
+  public async deleteUser(
+    res: Response,
+    userId: number,
+    password: string,
+  ): Promise<LocalMessageType> {
+    const user = await this.getUserById(userId);
+
+    if (password.length > 1 && !(await compare(password, user.password)))
+      throw new BadRequestException('Wrong password!');
+
+    res.clearCookie(this.cookieName);
+
+    try {
+      await this.cacheManager.del(uuidV5(userId.toString(), this.wsNamespace));
+    } catch (_) {}
+
+    await this.commonService.throwInternalError(
+      this.usersRepository.removeAndFlush(user),
+    );
+
+    return new LocalMessageType('Account deleted successfully');
   }
 
   //____________________ QUERIES ____________________
@@ -176,16 +241,5 @@ export class UsersService {
     } catch (error) {
       this.commonService.throwDuplicateError(error, 'Email already exists');
     }
-  }
-
-  /**
-   * Delete User
-   *
-   * Removes user from db
-   */
-  public async deleteUser(user: UserEntity): Promise<void> {
-    await this.commonService.throwInternalError(
-      this.usersRepository.removeAndFlush(user),
-    );
   }
 }

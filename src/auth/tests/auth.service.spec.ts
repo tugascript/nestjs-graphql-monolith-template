@@ -5,13 +5,15 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { compare, hash } from 'bcrypt';
 import { Cache } from 'cache-manager';
 import { sign, verify } from 'jsonwebtoken';
-import { CommonService } from '../../common/common.service';
+import { v5 } from 'uuid';
 import { CommonModule } from '../../common/common.module';
+import { CommonService } from '../../common/common.service';
 import { LocalMessageType } from '../../common/gql-types/message.type';
 import { config, IJwt, ISingleJwt } from '../../config/config';
 import { MikroOrmConfig } from '../../config/mikroorm.config';
 import { validationSchema } from '../../config/validation';
 import { EmailModule } from '../../email/email.module';
+import { OnlineStatusEnum } from '../../users/enums/online-status.enum';
 import { UsersModule } from '../../users/users.module';
 import { UsersService } from '../../users/users.service';
 import { AuthService } from '../auth.service';
@@ -20,12 +22,12 @@ import {
   IAccessPayload,
   IAccessPayloadResponse,
 } from '../interfaces/access-payload.interface';
+import { ISessionData } from '../interfaces/session-data.interface';
 import {
   ITokenPayload,
   ITokenPayloadResponse,
 } from '../interfaces/token-payload.interface';
 import { ResponseMock } from './response.mock.spec';
-import { v5 } from 'uuid';
 
 const EMAIL = 'johndoe@yahoo.com';
 const NEW_EMAIL = 'johndoethesecond@yahoo.com';
@@ -128,6 +130,7 @@ describe('AuthService', () => {
     return code;
   };
 
+  let sharedId: number;
   describe('HTTP AUTH', () => {
     let userId: number;
     let token: string;
@@ -262,6 +265,131 @@ describe('AuthService', () => {
 
       const { id } = await verifyAuthToken(auth2.accessToken, 'access');
       expect(auth2.user.id).toBe(id);
+    });
+
+    let resetToken: string;
+    it('sendResetPasswordEmail', async () => {
+      jest
+        .spyOn(authService, 'sendResetPasswordEmail')
+        .mockImplementation(async ({ email }) => {
+          const user = await usersService.getUncheckUser(email);
+
+          if (user) {
+            resetToken = await generateAuthToken(
+              { id: user.id, count: user.count },
+              'resetPassword',
+            );
+            return new LocalMessageType(resetToken);
+          }
+
+          return new LocalMessageType('Password reset email sent');
+        });
+
+      const message1 = await authService.sendResetPasswordEmail({
+        email: NEW_EMAIL,
+      });
+      expect(message1).toBeInstanceOf(LocalMessageType);
+      expect(message1.message).toBe('Password reset email sent');
+
+      const message2 = await authService.sendResetPasswordEmail({
+        email: EMAIL,
+      });
+      expect(message2).toBeInstanceOf(LocalMessageType);
+      expect(message2.message).toBe(resetToken);
+    });
+
+    it('resetPassword', async () => {
+      await expect(
+        authService.resetPassword({
+          resetToken: 'asdavaasd',
+          passwords: { password1: 'a', password2: 'a' },
+        }),
+      ).rejects.toThrowError();
+
+      await expect(
+        authService.resetPassword({
+          resetToken,
+          passwords: { password1: PASSWORD, password2: NEW_PASSWORD },
+        }),
+      ).rejects.toThrowError();
+
+      const message = await authService.resetPassword({
+        resetToken,
+        passwords: { password1: NEW_PASSWORD, password2: NEW_PASSWORD },
+      });
+      expect(message).toBeInstanceOf(LocalMessageType);
+      expect(message.message).toBe('Password reseted successfully');
+
+      const { id } = await verifyAuthToken(resetToken, 'resetPassword');
+      sharedId = id;
+      const user = await usersService.getUserById(id);
+      expect(user.count).toBe(2);
+      expect(await compare(NEW_PASSWORD, user.password)).toBe(true);
+    });
+  });
+
+  describe('WS AUTH', () => {
+    it('generateWsAccessToken & refreshUserSession & closeUserSession', async () => {
+      const { id, count } = await usersService.getUserById(sharedId);
+      const accessToken = await generateAuthToken({ id }, 'access');
+      const refreshToken = await generateAuthToken({ id, count }, 'refresh');
+
+      const userUuid = v5(id.toString(), configService.get<string>('WS_UUID'));
+
+      expect(await cacheManager.get(userUuid)).toBeUndefined();
+
+      const wsAccessToken = await authService.generateWsAccessToken(
+        accessToken,
+        refreshToken,
+      );
+      const { sessionId } = (await verifyAuthToken(
+        wsAccessToken,
+        'wsAccess',
+      )) as IAccessPayloadResponse;
+
+      expect(sessionId).toBeDefined();
+
+      const sessionData = await cacheManager.get<ISessionData>(userUuid);
+      expect(sessionData).toBeDefined();
+      expect(sessionData.count).toBe(2);
+      expect(sessionData.status).toBe(OnlineStatusEnum.ONLINE);
+      expect(sessionData.sessions[sessionId]).toBeDefined();
+      expect(Object.keys(sessionData.sessions).length).toBe(1);
+
+      expect(
+        await authService.refreshUserSession(id, sessionId),
+      ).toBeUndefined();
+
+      const wsAccessToken2 = await authService.generateWsAccessToken(
+        accessToken,
+        refreshToken,
+      );
+      const { sessionId: sessionId2 } = (await verifyAuthToken(
+        wsAccessToken2,
+        'wsAccess',
+      )) as IAccessPayloadResponse;
+      const sessionData2 = await cacheManager.get<ISessionData>(userUuid);
+      expect(sessionData2).toBeDefined();
+      expect(sessionData2.count).toBe(2);
+      expect(sessionData2.status).toBe(OnlineStatusEnum.ONLINE);
+      expect(sessionData2.sessions[sessionId]).toBeDefined();
+      expect(sessionData2.sessions[sessionId2]).toBeDefined();
+      expect(Object.keys(sessionData2.sessions).length).toBe(2);
+
+      expect(await authService.closeUserSession(wsAccessToken)).toBeUndefined();
+
+      const sessionData3 = await cacheManager.get<ISessionData>(userUuid);
+      expect(sessionData3).toBeDefined();
+      expect(sessionData3.count).toBe(2);
+      expect(sessionData3.status).toBe(OnlineStatusEnum.ONLINE);
+      expect(sessionData3.sessions[sessionId]).toBeUndefined();
+      expect(sessionData3.sessions[sessionId2]).toBeDefined();
+      expect(Object.keys(sessionData3.sessions).length).toBe(1);
+
+      expect(
+        await authService.closeUserSession(wsAccessToken2),
+      ).toBeUndefined();
+      expect(await cacheManager.get<ISessionData>(userUuid)).toBeUndefined();
     });
   });
 

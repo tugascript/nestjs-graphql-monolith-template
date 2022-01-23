@@ -1,9 +1,10 @@
-import { Entity, Property } from '@mikro-orm/core';
+import { Entity, Enum, Property } from '@mikro-orm/core';
 import { Field, ObjectType } from '@nestjs/graphql';
 import {
   IsBoolean,
   IsDate,
   IsEmail,
+  IsEnum,
   IsInt,
   IsOptional,
   IsString,
@@ -12,6 +13,7 @@ import {
   Matches,
 } from 'class-validator';
 import { LocalBaseEntity } from '../../common/entities/base.entity';
+import { OnlineStatusEnum } from '../enums/online-status.enum';
 
 @ObjectType('User')
 @Entity({ tableName: 'users' })
@@ -50,6 +52,14 @@ export class UserEntity extends LocalBaseEntity {
   @Property()
   @IsString()
   public password!: string;
+
+  @Enum({
+    items: () => OnlineStatusEnum,
+    default: OnlineStatusEnum.ONLINE,
+    columnType: 'varchar(14)',
+  })
+  @IsEnum(OnlineStatusEnum)
+  public defaultStatus: OnlineStatusEnum = OnlineStatusEnum.ONLINE;
 
   // eslint-disable-next-line @typescript-eslint/no-inferrable-types
   @Property({ default: false })

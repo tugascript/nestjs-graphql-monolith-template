@@ -57,8 +57,6 @@ $ yarn run start:prod
 
 ## Unit Testing
 
-NOTE: I still have not written all test
-
 BEFORE EACH TEST:
 
 - Check if NODE_ENV is not production
@@ -80,7 +78,7 @@ EACH TEST SHOULD BE RUN SEPERATLY
 $ yarn run test service-name.service.spec.ts --detectOpenHandles
 ```
 
-## Support the frameworks used in this boilerplate
+## Support the frameworks used in this template
 
 Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
 
