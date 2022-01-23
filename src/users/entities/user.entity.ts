@@ -33,9 +33,7 @@ export class UserEntity extends LocalBaseEntity {
   @Field(() => String)
   @Property({ columnType: 'varchar(120)', unique: true })
   @IsString()
-  @Length(6, 110, {
-    message: 'Last name has to be between 3 and 50 characters.',
-  })
+  @Length(6, 110)
   @Matches(POINT_SLUG_REGEX)
   public username!: string;
 
