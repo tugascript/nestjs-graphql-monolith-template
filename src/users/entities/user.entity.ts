@@ -12,6 +12,7 @@ import {
   Length,
   Matches,
 } from 'class-validator';
+import { NAME_REGEX, POINT_SLUG_REGEX } from '../../common/constants/regex';
 import { LocalBaseEntity } from '../../common/entities/base.entity';
 import { OnlineStatusEnum } from '../enums/online-status.enum';
 
@@ -24,7 +25,7 @@ export class UserEntity extends LocalBaseEntity {
   @Length(3, 100, {
     message: 'Name has to be between 3 and 50 characters.',
   })
-  @Matches(/(^[\p{L}0-9'.\s]*$)/u, {
+  @Matches(NAME_REGEX, {
     message: 'Name can only contain letters, dots, numbers and spaces.',
   })
   public name!: string;
@@ -35,7 +36,7 @@ export class UserEntity extends LocalBaseEntity {
   @Length(6, 110, {
     message: 'Last name has to be between 3 and 50 characters.',
   })
-  @Matches(/(^[A-Za-z0-9.']*$)/u)
+  @Matches(POINT_SLUG_REGEX)
   public username!: string;
 
   @Field(() => String)
