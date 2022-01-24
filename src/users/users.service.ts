@@ -236,10 +236,9 @@ export class UsersService {
 
     if (isNew) this.usersRepository.persist(user);
 
-    try {
-      await this.usersRepository.flush();
-    } catch (error) {
-      this.commonService.throwDuplicateError(error, 'Email already exists');
-    }
+    await this.commonService.throwDuplicateError(
+      this.usersRepository.flush(),
+      'Email already exists',
+    );
   }
 }

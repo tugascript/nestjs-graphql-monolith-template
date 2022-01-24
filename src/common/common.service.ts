@@ -199,10 +199,14 @@ export class CommonService {
    * Checks is an error is of the code 23505, PostgreSQL's duplicate value error,
    * and throws a conflic exception
    */
-  public throwDuplicateError(error: Record<string, any>, message?: string) {
-    if (error.code === '23505')
-      throw new ConflictException(message ?? 'Duplicated value in database');
-    throw new BadRequestException(error.message);
+  public async throwDuplicateError<T>(promise: Promise<T>, message?: string) {
+    try {
+      return await promise;
+    } catch (error) {
+      if (error.code === '23505')
+        throw new ConflictException(message ?? 'Duplicated value in database');
+      throw new BadRequestException(error.message);
+    }
   }
 
   /**
