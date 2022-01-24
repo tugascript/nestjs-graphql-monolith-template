@@ -17,11 +17,14 @@ import { ISessionData } from '../auth/interfaces/session-data.interface';
 import { ITokenPayload } from '../auth/interfaces/token-payload.interface';
 import { CommonService } from '../common/common.service';
 import { LocalMessageType } from '../common/gql-types/message.type';
+import { IPaginated } from '../common/interfaces/paginated.interface';
 import { UploaderService } from '../uploader/uploader.service';
+import { GetUsersDto } from './dtos/get-users.dto';
 import { OnlineStatusDto } from './dtos/online-status.dto';
 import { ProfilePictureDto } from './dtos/profile-picture.dto';
 import { UserEntity } from './entities/user.entity';
 import { OnlineStatusEnum } from './enums/online-status.enum';
+import { getUserCursor } from './enums/users-cursor.enum';
 
 @Injectable()
 export class UsersService {
@@ -35,6 +38,8 @@ export class UsersService {
     private readonly cacheManager: Cache,
   ) {}
 
+  private readonly testing = this.configService.get<boolean>('testing');
+  private readonly likeOperation = this.testing ? '$like' : '$ilike';
   private readonly wsNamespace = this.configService.get<string>('WS_UUID');
   private readonly wsAccessTime =
     this.configService.get<number>('jwt.wsAccess.time');
@@ -205,6 +210,56 @@ export class UsersService {
     const user = await this.usersRepository.findOne({ id });
     this.commonService.checkExistence('User', user);
     return user;
+  }
+
+  /**
+   * Get User By Username
+   *
+   * Gets user by username, usually for the profile (if it exists)
+   */
+  public async getUserByUsername(username: string): Promise<UserEntity> {
+    const user = await this.usersRepository.findOne({ username });
+    this.commonService.checkExistence('User', user);
+    return user;
+  }
+
+  /**
+   * Find Users
+   *
+   * Search users usernames and returns paginated results
+   */
+  public async findUsers({
+    search,
+    order,
+    cursor,
+    first,
+    after,
+  }: GetUsersDto): Promise<IPaginated<UserEntity>> {
+    const name = 'u';
+
+    const qb = this.usersRepository
+      .createQueryBuilder(name)
+      .where({
+        username: {
+          [this.likeOperation]: `%${this.commonService.generatePointSlug(
+            search,
+          )}%`,
+        },
+      })
+      .orWhere({
+        name: {
+          [this.likeOperation]: `%${search}%`,
+        },
+      });
+
+    return await this.commonService.queryBuilderPagination(
+      name,
+      getUserCursor(cursor),
+      first,
+      order,
+      qb,
+      after,
+    );
   }
 
   /**
