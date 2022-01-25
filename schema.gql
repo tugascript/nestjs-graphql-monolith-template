@@ -44,13 +44,33 @@ enum OnlineStatus {
   ONLINE
 }
 
+type PageInfo {
+  endCursor: String!
+  hasNextPage: Boolean!
+}
+
+type PaginatedUsers {
+  edges: [UserEntityPageEdge!]!
+  pageInfo: PageInfo!
+  totalCount: Int!
+}
+
 input PasswordsInput {
   password1: String!
   password2: String!
 }
 
 type Query {
+  findUsers(after: String, cursor: UsersCursor = DATE, first: Int = 10, order: QueryOrder = DESC, search: String!): PaginatedUsers!
   getCurrentUser: User!
+  getUser(username: String!): User!
+}
+
+enum QueryOrder {
+  ASC
+  DESC
+  asc
+  desc
 }
 
 input RegisterInput {
@@ -74,4 +94,14 @@ type User {
   picture: String
   updatedAt: String!
   username: String!
+}
+
+type UserEntityPageEdge {
+  cursor: String!
+  node: User!
+}
+
+enum UsersCursor {
+  ALPHABET
+  DATE
 }

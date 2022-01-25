@@ -1,4 +1,5 @@
-import { Dictionary } from '@mikro-orm/core';
+import { Dictionary, FilterQuery } from '@mikro-orm/core';
+import { EntityRepository, QueryBuilder } from '@mikro-orm/postgresql';
 import {
   BadRequestException,
   ConflictException,
@@ -10,6 +11,8 @@ import { validate } from 'class-validator';
 import slugify from 'slugify';
 import { v4 as uuidV4 } from 'uuid';
 import { NotificationTypeEnum } from './enums/notification-type.enum';
+import { localQueryOrder, QueryOrderEnum } from './enums/query-order.enum';
+import { ICountResult } from './interfaces/count-result.interface';
 import { INotification } from './interfaces/notification.interface';
 import { IEdge, IPaginated } from './interfaces/paginated.interface';
 
@@ -115,6 +118,124 @@ export class CommonService {
     }
 
     return str;
+  }
+
+  //-------------------- Repository Pagination --------------------
+
+  /**
+   * Query Builder Pagination
+   *
+   * Takes a query builder and returns the entities paginated
+   */
+  public async queryBuilderPagination<T>(
+    name: string,
+    cursor: keyof T,
+    first: number,
+    order: QueryOrderEnum,
+    qb: QueryBuilder<T>,
+    after?: string,
+    afterIsNum = false,
+    innerCursor?: string,
+  ): Promise<IPaginated<T>> {
+    const nqb = qb;
+    const cqb = qb;
+
+    if (after) {
+      const decoded = this.decodeCursor(after, afterIsNum);
+      const orderOperation = localQueryOrder(order);
+      const where: FilterQuery<T> = innerCursor
+        ? {
+            [cursor]: {
+              [innerCursor]: {
+                [orderOperation]: decoded,
+              },
+            },
+          }
+        : {
+            [cursor]: {
+              [orderOperation]: decoded,
+            },
+          };
+
+      nqb.andWhere(where);
+      cqb.andWhere(where);
+    }
+
+    const [entities, countResult]: [T[], ICountResult[]] =
+      await this.throwInternalError(
+        Promise.all([
+          nqb
+            .orderBy(this.getOrderBy(cursor, order, innerCursor))
+            .limit(first)
+            .getResult(),
+          cqb.count(`${name}.${cursor}`, true).execute(),
+        ]),
+      );
+
+    return this.paginate(
+      entities,
+      countResult[0].count,
+      cursor,
+      first,
+      innerCursor,
+    );
+  }
+
+  /**
+   * Find And Count Pagination
+   *
+   * Takes an entity repository and a FilterQuery and returns the paginated
+   * entities
+   */
+  public async findAndCountPagination<T>(
+    cursor: keyof T,
+    first: number,
+    order: QueryOrderEnum,
+    repo: EntityRepository<T>,
+    where: FilterQuery<T>,
+    after?: string,
+    afterIsNum = false,
+    innerCursor?: string,
+  ): Promise<IPaginated<T>> {
+    if (after) {
+      const decoded = this.decodeCursor(after, afterIsNum);
+      const orderOperation = localQueryOrder(order);
+
+      where['$and'] = {
+        [cursor]: innerCursor
+          ? {
+              [innerCursor]: {
+                [orderOperation]: decoded,
+              },
+            }
+          : {
+              [orderOperation]: decoded,
+            },
+      };
+    }
+
+    const [entities, count] = await repo.findAndCount(where, {
+      orderBy: this.getOrderBy(cursor, order, innerCursor),
+      limit: first,
+    });
+
+    return this.paginate(entities, count, cursor, first, innerCursor);
+  }
+
+  private getOrderBy<T>(
+    cursor: keyof T,
+    order: QueryOrderEnum,
+    innerCursor?: string,
+  ): Record<string, QueryOrderEnum | Record<string, QueryOrderEnum>> {
+    return innerCursor
+      ? {
+          [cursor]: {
+            [innerCursor]: order,
+          },
+        }
+      : {
+          [cursor]: order,
+        };
   }
 
   //-------------------- Notification Generation --------------------

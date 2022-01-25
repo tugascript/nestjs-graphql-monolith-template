@@ -1,11 +1,19 @@
 import { ArgsType, Field, Int } from '@nestjs/graphql';
-import { IsBase64, IsInt, IsString, Max, Min } from 'class-validator';
+import {
+  IsBase64,
+  IsInt,
+  IsOptional,
+  IsString,
+  Max,
+  Min,
+} from 'class-validator';
 
 @ArgsType()
 export class PaginationDto {
   @Field(() => String, { nullable: true })
   @IsString()
   @IsBase64()
+  @IsOptional()
   public after?: string;
 
   @Field(() => Int)
