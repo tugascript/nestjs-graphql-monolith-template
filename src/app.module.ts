@@ -1,21 +1,21 @@
-import { CacheModule, Module } from '@nestjs/common';
-import { UsersModule } from './users/users.module';
-import { CommonModule } from './common/common.module';
-import { AuthModule } from './auth/auth.module';
-import { EmailModule } from './email/email.module';
-import { ConfigModule } from '@nestjs/config';
-import { validationSchema } from './config/validation';
 import { MikroOrmModule } from '@mikro-orm/nestjs';
-import { MikroOrmConfig } from './config/mikroorm.config';
-import { config } from './config/config';
-import { CacheConfig } from './config/cache.config';
-import { GraphQLModule } from '@nestjs/graphql';
-import { GraphQLConfig } from './config/graphql.config';
+import { CacheModule, Module } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
+import { GraphQLModule } from '@nestjs/graphql';
+import { AuthModule } from './auth/auth.module';
 import { GraphQLAuthGuard } from './auth/guards/gql.guard';
-import { UploaderModule } from './uploader/uploader.module';
-import { PubsubModule } from './pubsub/pubsub.module';
+import { CommonModule } from './common/common.module';
+import { CacheConfig } from './config/cache.config';
+import { config } from './config/config';
+import { GraphQLConfig } from './config/graphql.config';
+import { MikroOrmConfig } from './config/mikroorm.config';
+import { validationSchema } from './config/validation';
 import { DataloadersModule } from './dataloaders/dataloaders.module';
+import { EmailModule } from './email/email.module';
+import { PubsubModule } from './pubsub/pubsub.module';
+import { UploaderModule } from './uploader/uploader.module';
+import { UsersModule } from './users/users.module';
 
 @Module({
   imports: [
