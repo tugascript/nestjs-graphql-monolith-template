@@ -237,20 +237,23 @@ export class UsersService {
   }: GetUsersDto): Promise<IPaginated<UserEntity>> {
     const name = 'u';
 
-    const qb = this.usersRepository
-      .createQueryBuilder(name)
-      .where({
-        username: {
-          [this.likeOperation]: `%${this.commonService.generatePointSlug(
-            search,
-          )}%`,
+    const qb = this.usersRepository.createQueryBuilder(name).where({
+      confirmed: true,
+      $or: [
+        {
+          username: {
+            [this.likeOperation]: `%${this.commonService.generatePointSlug(
+              search,
+            )}%`,
+          },
         },
-      })
-      .orWhere({
-        name: {
-          [this.likeOperation]: `%${search}%`,
+        {
+          name: {
+            [this.likeOperation]: `%${search}%`,
+          },
         },
-      });
+      ],
+    });
 
     return await this.commonService.queryBuilderPagination(
       name,

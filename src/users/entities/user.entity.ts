@@ -15,6 +15,7 @@ import {
 import { NAME_REGEX, POINT_SLUG_REGEX } from '../../common/constants/regex';
 import { LocalBaseEntity } from '../../common/entities/base.entity';
 import { OnlineStatusEnum } from '../enums/online-status.enum';
+import { ownerMiddleware } from '../middleware/owner.middleware';
 
 @ObjectType('User')
 @Entity({ tableName: 'users' })
@@ -37,7 +38,7 @@ export class UserEntity extends LocalBaseEntity {
   @Matches(POINT_SLUG_REGEX)
   public username!: string;
 
-  @Field(() => String, { nullable: true })
+  @Field(() => String, { nullable: true, middleware: [ownerMiddleware] })
   @Property({ columnType: 'varchar(255)', unique: true })
   @IsEmail()
   public email!: string;
