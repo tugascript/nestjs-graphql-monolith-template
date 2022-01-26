@@ -14,7 +14,7 @@ import { sign, verify } from 'jsonwebtoken';
 import { v4 as uuidV4, v5 as uuidV5 } from 'uuid';
 import { CommonService } from '../common/common.service';
 import { LocalMessageType } from '../common/gql-types/message.type';
-import { getUnixTime } from '../common/helpers/get-unix-time';
+import * as dayjs from 'dayjs';
 import { IJwt, ISingleJwt } from '../config/config';
 import { EmailService } from '../email/email.service';
 import { UserEntity } from '../users/entities/user.entity';
@@ -93,7 +93,7 @@ export class AuthService {
       throw new BadRequestException('Email already confirmed');
 
     user.confirmed = true;
-    user.count++;
+    user.credentials.updateVersion();
     user.lastLogin = new Date();
     await this.usersService.saveUserToDb(user);
 
@@ -114,9 +114,43 @@ export class AuthService {
     { email, password }: LoginInput,
   ): Promise<AuthType | LocalMessageType> {
     const user = await this.usersService.getUserForAuth(email);
+    const currentPassword = user.password;
+    const { lastPassword, updatedAt } = user.credentials;
+    const now = dayjs();
+    const time = dayjs.unix(updatedAt);
+    const months = now.diff(time, 'month');
 
-    if (!(await compare(password, user.password)))
+    if (!(await compare(password, currentPassword))) {
+      // To check for passwords changes, based on facebook auth
+      if (
+        lastPassword.length > 0 &&
+        !(await compare(lastPassword, currentPassword))
+      ) {
+        let message = 'You changed your password ';
+
+        if (months > 0) {
+          message += months + ' months ago.';
+        } else {
+          const days = now.diff(time, 'day');
+
+          if (days > 0) {
+            message += days + ' days ago.';
+          } else {
+            const hours = now.diff(time, 'hour');
+
+            if (hours > 0) {
+              message += hours + ' hours ago.';
+            } else {
+              message += 'recently.';
+            }
+          }
+        }
+
+        throw new UnauthorizedException(message);
+      }
+
       throw new UnauthorizedException('Invalid credentials');
+    }
 
     if (!user.confirmed) {
       this.sendConfirmationEmail(user);
@@ -146,7 +180,27 @@ export class AuthService {
     user.lastLogin = new Date();
     await this.usersService.saveUserToDb(user);
 
-    return new AuthType(accessToken, user);
+    return new AuthType(
+      accessToken,
+      user,
+      months >= 6
+        ? new LocalMessageType('Please confirm your credentials')
+        : undefined,
+    );
+  }
+
+  /**
+   * Confirm Credentials
+   *
+   * Confirms credentials update by user
+   */
+  public async confirmCredentials(userId: number): Promise<LocalMessageType> {
+    const user = await this.usersService.getUserById(userId);
+
+    user.credentials.updatedAt = dayjs().unix();
+    await this.usersService.saveUserToDb(user);
+
+    return new LocalMessageType('Auth credentials confirmed');
   }
 
   /**
@@ -225,7 +279,7 @@ export class AuthService {
 
     if (user) {
       const resetToken = await this.generateAuthToken(
-        { id: user.id, count: user.count },
+        { id: user.id, count: user.credentials.version },
         'resetPassword',
       );
       const url = `${this.url}/reset-password/${resetToken}/`;
@@ -255,7 +309,8 @@ export class AuthService {
       throw new BadRequestException('Passwords do not match');
 
     const user = await this.usersService.getUserByPayload(payload);
-    user.count++;
+    user.credentials.updatePassword(user.password);
+
     user.password = await hash(password1, 10);
     await this.usersService.saveUserToDb(user);
 
@@ -303,7 +358,7 @@ export class AuthService {
       throw new BadRequestException('Wrong password!');
 
     user.email = email;
-    user.count++;
+    user.credentials.version++;
     await this.usersService.saveUserToDb(user);
 
     const [accessToken, refreshToken] = await this.generateAuthTokens(user);
@@ -333,7 +388,7 @@ export class AuthService {
       throw new BadRequestException('Passwords do not match');
 
     user.password = await hash(password1, 10);
-    user.count++;
+    user.credentials.version++;
     await this.usersService.saveUserToDb(user);
 
     const [accessToken, refreshToken] = await this.generateAuthTokens(user);
@@ -359,9 +414,16 @@ export class AuthService {
       refreshToken,
       'refresh',
     )) as ITokenPayloadResponse;
-    const { id, count, defaultStatus } =
-      await this.usersService.getUserByPayload(payload);
-    const userUuid = uuidV5(id.toString(), this.wsNamespace);
+    const user = await this.usersService.getUserByPayload(payload);
+
+    if (!user.confirmed) {
+      this.sendConfirmationEmail(user);
+      throw new UnauthorizedException(
+        'Please confirm your email, a new email has been sent',
+      );
+    }
+
+    const userUuid = uuidV5(user.id.toString(), this.wsNamespace);
 
     let sessionData = await this.commonService.throwInternalError(
       this.cacheManager.get<ISessionData>(userUuid),
@@ -369,16 +431,16 @@ export class AuthService {
 
     if (!sessionData)
       sessionData = {
-        count,
-        status: defaultStatus,
+        count: user.credentials.version,
+        status: user.defaultStatus,
         sessions: {},
       };
 
     const sessionId = uuidV4();
-    sessionData.sessions[sessionId] = getUnixTime();
+    sessionData.sessions[sessionId] = dayjs().unix();
     await this.saveSessionData(userUuid, sessionData);
 
-    return await this.generateAuthToken({ id, sessionId }, 'wsAccess');
+    return await this.generateAuthToken({ id: user.id, sessionId }, 'wsAccess');
   }
 
   /**
@@ -400,12 +462,12 @@ export class AuthService {
     if (!sessionData || !sessionData.sessions[sessionId])
       throw new UnauthorizedException('Invalid user session');
 
-    const now = getUnixTime();
+    const now = dayjs().unix();
 
     if (now - sessionData.sessions[sessionId] > this.accessTime) {
-      const { count } = await this.usersService.getUserById(userId);
+      const { credentials } = await this.usersService.getUserById(userId);
 
-      if (count !== sessionData.count) {
+      if (credentials.version !== sessionData.count) {
         await this.commonService.throwInternalError(
           this.cacheManager.del(userUuid),
         );
@@ -465,7 +527,7 @@ export class AuthService {
    */
   private async sendConfirmationEmail(user: UserEntity): Promise<string> {
     const emailToken = await this.generateAuthToken(
-      { id: user.id, count: user.count },
+      { id: user.id, count: user.credentials.version },
       'confirmation',
     );
     const url = `${this.url}/confirm-email/${emailToken}/`;
@@ -483,11 +545,11 @@ export class AuthService {
    */
   private async generateAuthTokens({
     id,
-    count,
+    credentials,
   }: UserEntity): Promise<[string, string]> {
     return Promise.all([
       this.generateAuthToken({ id }, 'access'),
-      this.generateAuthToken({ id, count }, 'refresh'),
+      this.generateAuthToken({ id, count: credentials.version }, 'refresh'),
     ]);
   }
 

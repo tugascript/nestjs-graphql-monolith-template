@@ -1,11 +1,11 @@
-import { Entity, Enum, Property } from '@mikro-orm/core';
+/* eslint-disable @typescript-eslint/no-inferrable-types */
+import { Embedded, Entity, Enum, Property } from '@mikro-orm/core';
 import { Field, ObjectType } from '@nestjs/graphql';
 import {
   IsBoolean,
   IsDate,
   IsEmail,
   IsEnum,
-  IsInt,
   IsOptional,
   IsString,
   IsUrl,
@@ -14,6 +14,7 @@ import {
 } from 'class-validator';
 import { NAME_REGEX, POINT_SLUG_REGEX } from '../../common/constants/regex';
 import { LocalBaseEntity } from '../../common/entities/base.entity';
+import { CredentialsEmbeddable } from '../embeddables/credentials.embeddable';
 import { OnlineStatusEnum } from '../enums/online-status.enum';
 import { ownerMiddleware } from '../middleware/owner.middleware';
 
@@ -61,28 +62,20 @@ export class UserEntity extends LocalBaseEntity {
   @IsEnum(OnlineStatusEnum)
   public defaultStatus: OnlineStatusEnum = OnlineStatusEnum.ONLINE;
 
-  // eslint-disable-next-line @typescript-eslint/no-inferrable-types
   @Property({ default: false })
   @IsBoolean()
   public confirmed: boolean = false;
 
-  // eslint-disable-next-line @typescript-eslint/no-inferrable-types
   @Property({ default: false })
   @IsBoolean()
   public suspended: boolean = false;
 
-  // eslint-disable-next-line @typescript-eslint/no-inferrable-types
   @Property({ default: false })
   @IsBoolean()
   public twoFactor: boolean = false;
 
-  // eslint-disable-next-line @typescript-eslint/no-inferrable-types
-  @Property({
-    columnType: 'int',
-    default: 0,
-  })
-  @IsInt()
-  public count: number = 0;
+  @Embedded(() => CredentialsEmbeddable)
+  public credentials: CredentialsEmbeddable = new CredentialsEmbeddable();
 
   @Field(() => String)
   @Property()

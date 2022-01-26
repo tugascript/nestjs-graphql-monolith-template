@@ -4,6 +4,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
 import { compare, hash } from 'bcrypt';
 import { Cache } from 'cache-manager';
+import * as dayjs from 'dayjs';
 import { sign, verify } from 'jsonwebtoken';
 import { v5 } from 'uuid';
 import { CommonModule } from '../../common/common.module';
@@ -13,6 +14,7 @@ import { config, IJwt, ISingleJwt } from '../../config/config';
 import { MikroOrmConfig } from '../../config/mikroorm.config';
 import { validationSchema } from '../../config/validation';
 import { EmailModule } from '../../email/email.module';
+import { CredentialsEmbeddable } from '../../users/embeddables/credentials.embeddable';
 import { OnlineStatusEnum } from '../../users/enums/online-status.enum';
 import { UsersModule } from '../../users/users.module';
 import { UsersService } from '../../users/users.service';
@@ -147,8 +149,11 @@ describe('AuthService', () => {
       jest
         .spyOn(authService, 'registerUser')
         .mockImplementationOnce(async (input) => {
-          const { id, count } = await usersService.createUser(input);
-          token = await generateAuthToken({ id, count }, 'confirmation');
+          const { id, credentials } = await usersService.createUser(input);
+          token = await generateAuthToken(
+            { id, count: credentials.version },
+            'confirmation',
+          );
           userId = id;
           return new LocalMessageType(token);
         });
@@ -177,7 +182,7 @@ describe('AuthService', () => {
 
       expect(auth).toBeInstanceOf(AuthType);
       expect(auth.user.id).toBe(userId);
-      expect(auth.user.count).toBe(1);
+      expect(auth.user.credentials.version).toBe(1);
 
       const { id } = await verifyAuthToken(auth.accessToken, 'access');
       expect(auth.user.id).toBe(id);
@@ -276,7 +281,7 @@ describe('AuthService', () => {
 
           if (user) {
             resetToken = await generateAuthToken(
-              { id: user.id, count: user.count },
+              { id: user.id, count: user.credentials.version },
               'resetPassword',
             );
             return new LocalMessageType(resetToken);
@@ -323,16 +328,100 @@ describe('AuthService', () => {
       const { id } = await verifyAuthToken(resetToken, 'resetPassword');
       sharedId = id;
       const user = await usersService.getUserById(id);
-      expect(user.count).toBe(2);
+      expect(user.credentials.version).toBe(2);
       expect(await compare(NEW_PASSWORD, user.password)).toBe(true);
+    });
+
+    it('test credentials versioning', async () => {
+      const email = 'john@doe.com';
+      const newUser = await usersService.createUser({
+        email,
+        name: 'John Doe',
+        password1: PASSWORD,
+        password2: PASSWORD,
+      });
+
+      const lastPassword = await hash(NEW_PASSWORD, 10);
+      const today = dayjs();
+
+      newUser.credentials = new CredentialsEmbeddable({
+        version: 1,
+        lastPassword,
+        updatedAt: today.subtract(3, 'month').unix(),
+      });
+      newUser.confirmed = true;
+      await usersService.saveUserToDb(newUser);
+
+      await expect(
+        authService.loginUser(response as any, {
+          email,
+          password: NEW_PASSWORD,
+        }),
+      ).rejects.toThrowError('You changed your password 3 months ago.');
+
+      newUser.credentials = new CredentialsEmbeddable({
+        version: 1,
+        lastPassword,
+        updatedAt: today.subtract(2, 'day').unix(),
+      });
+      await usersService.saveUserToDb(newUser);
+      await expect(
+        authService.loginUser(response as any, {
+          email,
+          password: NEW_PASSWORD,
+        }),
+      ).rejects.toThrowError('You changed your password 2 days ago.');
+
+      newUser.credentials = new CredentialsEmbeddable({
+        version: 1,
+        lastPassword,
+        updatedAt: today.subtract(5, 'hour').unix(),
+      });
+      await usersService.saveUserToDb(newUser);
+      await expect(
+        authService.loginUser(response as any, {
+          email,
+          password: NEW_PASSWORD,
+        }),
+      ).rejects.toThrowError('You changed your password 5 hours ago.');
+
+      newUser.credentials = new CredentialsEmbeddable({
+        version: 1,
+        lastPassword,
+        updatedAt: today.subtract(30, 'minute').unix(),
+      });
+      await usersService.saveUserToDb(newUser);
+      await expect(
+        authService.loginUser(response as any, {
+          email,
+          password: NEW_PASSWORD,
+        }),
+      ).rejects.toThrowError('You changed your password recently.');
+
+      newUser.credentials = new CredentialsEmbeddable({
+        version: 1,
+        lastPassword,
+        updatedAt: today.subtract(6, 'month').unix(),
+      });
+      await usersService.saveUserToDb(newUser);
+      const auth = (await authService.loginUser(response as any, {
+        email,
+        password: PASSWORD,
+      })) as AuthType;
+
+      expect(auth.message).toBeDefined();
+      expect(auth.message.message).toBe('Please confirm your credentials');
     });
   });
 
   describe('WS AUTH', () => {
     it('generateWsAccessToken & refreshUserSession & closeUserSession', async () => {
-      const { id, count } = await usersService.getUserById(sharedId);
+      const { id, credentials } = await usersService.getUserById(sharedId);
       const accessToken = await generateAuthToken({ id }, 'access');
-      const refreshToken = await generateAuthToken({ id, count }, 'refresh');
+      const refreshToken = await generateAuthToken(
+        { id, count: credentials.version },
+        'refresh',
+      );
 
       const userUuid = v5(id.toString(), configService.get<string>('WS_UUID'));
 
