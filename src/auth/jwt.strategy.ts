@@ -1,10 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PassportStrategy } from '@nestjs/passport';
+import * as dayjs from 'dayjs';
 import { ExtractJwt, Strategy, VerifiedCallback } from 'passport-jwt';
-import { getUnixTime } from '../common/helpers/get-unix-time';
 import { AuthService } from './auth.service';
 import { IAccessPayloadResponse } from './interfaces/access-payload.interface';
+
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
   constructor(
@@ -26,7 +27,7 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
     { id, sessionId, iat }: IAccessPayloadResponse,
     done: VerifiedCallback,
   ): Promise<void> {
-    if (sessionId && getUnixTime() - iat > this.accessTime)
+    if (sessionId && dayjs().unix() - iat > this.accessTime)
       await this.authService.refreshUserSession(id, sessionId);
 
     return done(null, id, iat);

@@ -195,8 +195,8 @@ export class UsersService {
     id,
     count,
   }: ITokenPayload): Promise<UserEntity> {
-    const user = await this.usersRepository.findOne({ id, count });
-    if (!user)
+    const user = await this.usersRepository.findOne({ id });
+    if (!user || user.credentials.version !== count)
       throw new UnauthorizedException('Token is invalid or has expired');
     return user;
   }

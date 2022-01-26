@@ -7,11 +7,11 @@ import {
   Resolver,
 } from '@nestjs/graphql';
 import { Response } from 'express';
-import { Public } from 'src/auth/decorators/public.decorator';
-import { IPaginated } from 'src/common/interfaces/paginated.interface';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { GetRes } from '../auth/decorators/get-res.decorator';
+import { Public } from '../auth/decorators/public.decorator';
 import { LocalMessageType } from '../common/gql-types/message.type';
+import { IPaginated } from '../common/interfaces/paginated.interface';
 import { GetUserDto } from './dtos/get-user.dto';
 import { GetUsersDto } from './dtos/get-users.dto';
 import { OnlineStatusDto } from './dtos/online-status.dto';

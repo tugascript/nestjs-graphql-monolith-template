@@ -2,7 +2,7 @@ export const loginConfirmationEmail = (name: string, code: string) => `
 <body>
   <p>Hello ${name},</p>
   <br />
-  <p>Welcome back to Your App,</p>
+  <p>Welcome back to [Your app],</p>
   <p>
     Here's your login code:
     <b>${code}</b>
@@ -11,7 +11,7 @@ export const loginConfirmationEmail = (name: string, code: string) => `
     <small>This code will expire in 5 minutes.</small>
   </p>
   <br />
-  <p>Best of luck,</p>
-  <p>TugaScript Team</p>
+  <p>Best regards,</p>
+  <p>[Your app] Team</p>
 </body>
 `;

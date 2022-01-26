@@ -8,6 +8,6 @@ export const passwordResetEmail = (name: string, link: string) => `
   <p><small>This link will expire in 30 minutes.</small></p>
   <br />
   <p>Best regards,</p>
-  <p>TugaScript Team</p>
+  <p>[Your app] Team</p>
 </body>
 `;

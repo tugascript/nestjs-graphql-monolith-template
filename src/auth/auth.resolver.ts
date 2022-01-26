@@ -102,4 +102,11 @@ export class AuthResolver {
   ): Promise<AuthType> {
     return this.authService.updatePassword(res, userId, dto);
   }
+
+  @Mutation(() => LocalMessageType)
+  public async confirmCredentials(
+    @CurrentUser() userId: number,
+  ): Promise<LocalMessageType> {
+    return this.authService.confirmCredentials(userId);
+  }
 }
