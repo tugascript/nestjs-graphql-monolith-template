@@ -200,7 +200,7 @@ export class AuthService {
     user.credentials.updatedAt = dayjs().unix();
     await this.usersService.saveUserToDb(user);
 
-    return new LocalMessageType('Auth credentials confirmed');
+    return new LocalMessageType('Authentication credentials confirmed');
   }
 
   /**

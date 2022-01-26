@@ -411,6 +411,16 @@ describe('AuthService', () => {
 
       expect(auth.message).toBeDefined();
       expect(auth.message.message).toBe('Please confirm your credentials');
+
+      const message = await authService.confirmCredentials(auth.user.id);
+      expect(message.message).toBe('Authentication credentials confirmed');
+
+      const newAuth = (await authService.loginUser(response as any, {
+        email,
+        password: PASSWORD,
+      })) as AuthType;
+
+      expect(newAuth.message).toBeUndefined();
     });
   });
 
