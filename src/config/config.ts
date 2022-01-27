@@ -36,7 +36,7 @@ export interface IConfig {
   jwt: IJwt;
   emailService: IEmailConfig;
   bucketConfig: S3ClientConfig;
-  redis: Redis.RedisOptions | null;
+  redis: Redis.Redis | null;
   ttl: number;
   upload: UploadOptions;
   testing: boolean;
@@ -107,10 +107,10 @@ export const config = (): IConfig => {
         },
     redis: TESTING
       ? null
-      : {
+      : new Redis({
           host: process.env.REDIS_HOST,
           port: parseInt(process.env.REDIS_PORT, 10),
-        },
+        }),
     ttl: parseInt(process.env.REDIS_CACHE_TTL, 10),
     upload: {
       maxFileSize: parseInt(process.env.MAX_FILE_SIZE, 10),

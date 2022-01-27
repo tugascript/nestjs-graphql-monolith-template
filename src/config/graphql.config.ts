@@ -4,7 +4,7 @@ import { GqlModuleOptions, GqlOptionsFactory } from '@nestjs/graphql';
 import { BaseRedisCache } from 'apollo-server-cache-redis';
 import responseCachePlugin from 'apollo-server-plugin-response-cache';
 import { Request } from 'express';
-import * as Redis from 'ioredis';
+import { Redis } from 'ioredis';
 import { AuthService } from '../auth/auth.service';
 import { ICtx } from '../common/interfaces/ctx.interface';
 import { ISubscriptionCtx } from '../common/interfaces/subscription-ctx.interface';
@@ -43,9 +43,7 @@ export class GraphQLConfig implements GqlOptionsFactory {
       cache: this.testing
         ? undefined
         : new BaseRedisCache({
-            client: new Redis(
-              this.configService.get<Redis.RedisOptions>('redis'),
-            ),
+            client: this.configService.get<Redis>('redis'),
           }),
       subscriptions: {
         'graphql-ws': {
