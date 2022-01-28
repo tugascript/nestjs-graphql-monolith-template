@@ -11,7 +11,7 @@ import { ConfigService } from '@nestjs/config';
 import { compare, hash } from 'bcrypt';
 import { Cache } from 'cache-manager';
 import { Response } from 'express';
-import { v5 as uuidV5 } from 'uuid';
+import { v5 as uuidV5, v4 as uuidV4 } from 'uuid';
 import { RegisterInput } from '../auth/inputs/register.input';
 import { ISessionData } from '../auth/interfaces/session-data.interface';
 import { ITokenPayload } from '../auth/interfaces/token-payload.interface';
@@ -64,12 +64,16 @@ export class UsersService {
 
     name = this.commonService.formatTitle(name);
     const password = await hash(password1, 10);
-
     let username = this.commonService.generatePointSlug(name);
-    const count = await this.usersRepository.count({
-      username: { $like: `${username}%` },
-    });
-    if (count > 0) username += count.toString();
+
+    if (username.length >= 3) {
+      const count = await this.usersRepository.count({
+        username: { $like: `${username}%` },
+      });
+      if (count > 0) username += count.toString();
+    } else {
+      username = uuidV4();
+    }
 
     const user = this.usersRepository.create({
       name,
@@ -239,20 +243,12 @@ export class UsersService {
 
     const qb = this.usersRepository.createQueryBuilder(name).where({
       confirmed: true,
-      $or: [
-        {
-          username: {
-            [this.likeOperation]: `%${this.commonService.generatePointSlug(
-              search,
-            )}%`,
-          },
-        },
-        {
-          name: {
-            [this.likeOperation]: `%${search}%`,
-          },
-        },
-      ],
+      name: {
+        [this.likeOperation]: `%${search
+          .trim()
+          .replace(/\s\s+/g, ' ')
+          .toLowerCase()}%`,
+      },
     });
 
     return await this.commonService.queryBuilderPagination(

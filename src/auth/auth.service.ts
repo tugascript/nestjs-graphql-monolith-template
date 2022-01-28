@@ -310,7 +310,6 @@ export class AuthService {
 
     const user = await this.usersService.getUserByPayload(payload);
     user.credentials.updatePassword(user.password);
-
     user.password = await hash(password1, 10);
     await this.usersService.saveUserToDb(user);
 
@@ -387,8 +386,8 @@ export class AuthService {
     if (password1 !== password2)
       throw new BadRequestException('Passwords do not match');
 
+    user.credentials.updatePassword(user.password);
     user.password = await hash(password1, 10);
-    user.credentials.version++;
     await this.usersService.saveUserToDb(user);
 
     const [accessToken, refreshToken] = await this.generateAuthTokens(user);

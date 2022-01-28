@@ -4,6 +4,7 @@
 
 type Auth {
   accessToken: String!
+  message: Message
   user: User!
 }
 
@@ -21,6 +22,7 @@ type Message {
 
 type Mutation {
   changeTwoFactorAuthentication(activate: Boolean!): Message!
+  confirmCredentials: Message!
   confirmEmail(confirmationToken: String!): Auth!
   confirmUserLogin(accessCode: String!, email: String!): Auth!
   deleteAccount(password: String!): Message!
