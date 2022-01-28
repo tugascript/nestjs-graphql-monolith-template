@@ -63,7 +63,7 @@ describe('UsersService', () => {
   });
 
   describe('create users for pagination', () => {
-    it('should create 100 users', async () => {
+    it('should create 50 users', async () => {
       const nonFlushUserCreation = async ({
         name,
         email,

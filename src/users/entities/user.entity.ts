@@ -12,7 +12,7 @@ import {
   Length,
   Matches,
 } from 'class-validator';
-import { NAME_REGEX, POINT_SLUG_REGEX } from '../../common/constants/regex';
+import { NAME_REGEX, SLUG_REGEX } from '../../common/constants/regex';
 import { LocalBaseEntity } from '../../common/entities/base.entity';
 import { CredentialsEmbeddable } from '../embeddables/credentials.embeddable';
 import { OnlineStatusEnum } from '../enums/online-status.enum';
@@ -24,19 +24,15 @@ export class UserEntity extends LocalBaseEntity {
   @Field(() => String)
   @Property({ columnType: 'varchar(100)' })
   @IsString()
-  @Length(3, 100, {
-    message: 'Name has to be between 3 and 50 characters.',
-  })
-  @Matches(NAME_REGEX, {
-    message: 'Name can only contain letters, dots, numbers and spaces.',
-  })
+  @Length(3, 100)
+  @Matches(NAME_REGEX)
   public name!: string;
 
   @Field(() => String)
-  @Property({ columnType: 'varchar(120)', unique: true })
+  @Property({ columnType: 'varchar(110)', unique: true })
   @IsString()
-  @Length(6, 110)
-  @Matches(POINT_SLUG_REGEX)
+  @Length(3, 110)
+  @Matches(SLUG_REGEX)
   public username!: string;
 
   @Field(() => String, { nullable: true, middleware: [ownerMiddleware] })
