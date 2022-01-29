@@ -50,6 +50,17 @@ describe('CommonService', () => {
       const hello = 'hello whole world';
       expect(service.formatTitle(hello)).toBe('Hello Whole World');
     });
+
+    it('should format very bad title', () => {
+      const veryBad = '\nvery\nbad     \n\n\n\n\n\n\n\n';
+      expect(service.formatTitle(veryBad)).toBe('Very Bad');
+    });
+
+    it('should format a lot of spaces', () => {
+      const loadsOfSpaces =
+        '              Loads             of                 Spaces                   \n';
+      expect(service.formatTitle(loadsOfSpaces)).toBe('Loads Of Spaces');
+    });
   });
 
   it('should be defined', () => {
