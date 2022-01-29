@@ -244,10 +244,7 @@ export class UsersService {
     const qb = this.usersRepository.createQueryBuilder(name).where({
       confirmed: true,
       name: {
-        [this.likeOperation]: `%${search
-          .trim()
-          .replace(/\s\s+/g, ' ')
-          .toLowerCase()}%`,
+        [this.likeOperation]: this.commonService.formatSearch(search),
       },
     });
 
