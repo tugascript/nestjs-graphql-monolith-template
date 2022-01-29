@@ -11,13 +11,14 @@ import { ConfigService } from '@nestjs/config';
 import { compare, hash } from 'bcrypt';
 import { Cache } from 'cache-manager';
 import { Response } from 'express';
-import { v5 as uuidV5, v4 as uuidV4 } from 'uuid';
+import { v4 as uuidV4, v5 as uuidV5 } from 'uuid';
 import { RegisterInput } from '../auth/inputs/register.input';
 import { ISessionData } from '../auth/interfaces/session-data.interface';
 import { ITokenPayload } from '../auth/interfaces/token-payload.interface';
 import { CommonService } from '../common/common.service';
 import { LocalMessageType } from '../common/gql-types/message.type';
 import { IPaginated } from '../common/interfaces/paginated.interface';
+import { tLikeOperator } from '../config/config';
 import { UploaderService } from '../uploader/uploader.service';
 import { GetUsersDto } from './dtos/get-users.dto';
 import { OnlineStatusDto } from './dtos/online-status.dto';
@@ -38,8 +39,8 @@ export class UsersService {
     private readonly cacheManager: Cache,
   ) {}
 
-  private readonly testing = this.configService.get<boolean>('testing');
-  private readonly likeOperation = this.testing ? '$like' : '$ilike';
+  private readonly likeOperator =
+    this.configService.get<tLikeOperator>('likeOperator');
   private readonly wsNamespace = this.configService.get<string>('WS_UUID');
   private readonly wsAccessTime =
     this.configService.get<number>('jwt.wsAccess.time');
@@ -244,7 +245,7 @@ export class UsersService {
     const qb = this.usersRepository.createQueryBuilder(name).where({
       confirmed: true,
       name: {
-        [this.likeOperation]: this.commonService.formatSearch(search),
+        [this.likeOperator]: this.commonService.formatSearch(search),
       },
     });
 

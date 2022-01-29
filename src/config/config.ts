@@ -3,6 +3,8 @@ import { S3ClientConfig } from '@aws-sdk/client-s3';
 import { UploadOptions } from 'graphql-upload';
 import * as Redis from 'ioredis';
 
+export type tLikeOperator = '$ilike' | '$like';
+
 export interface ISingleJwt {
   secret: string;
   time: number;
@@ -40,6 +42,7 @@ export interface IConfig {
   ttl: number;
   upload: UploadOptions;
   testing: boolean;
+  likeOperator: tLikeOperator;
 }
 
 export const config = (): IConfig => {
@@ -117,5 +120,6 @@ export const config = (): IConfig => {
       maxFiles: parseInt(process.env.MAX_FILES, 10),
     },
     testing: TESTING,
+    likeOperator: TESTING ? '$like' : '$ilike',
   };
 };
