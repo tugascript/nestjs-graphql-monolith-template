@@ -2,6 +2,7 @@ import { MikroOrmModuleOptions } from '@mikro-orm/nestjs';
 import { S3ClientConfig } from '@aws-sdk/client-s3';
 import { UploadOptions } from 'graphql-upload';
 import * as Redis from 'ioredis';
+import { LoadStrategy } from '@mikro-orm/core';
 
 export type tLikeOperator = '$ilike' | '$like';
 
@@ -97,6 +98,7 @@ export const config = (): IConfig => {
           dbName: 'test.db',
           entities: ['dist/**/*.entity.js', 'dist/**/*.embeddable.js'],
           entitiesTs: ['src/**/*.entity.ts', 'src/**/*.embeddable.ts'],
+          loadStrategy: LoadStrategy.JOINED,
         }
       : {
           type: 'postgresql',
@@ -107,6 +109,7 @@ export const config = (): IConfig => {
           password: process.env.DB_PASSWORD,
           user: process.env.DB_USERNAME,
           dbName: process.env.DB_DATABASE,
+          loadStrategy: LoadStrategy.JOINED,
         },
     redis: TESTING
       ? null

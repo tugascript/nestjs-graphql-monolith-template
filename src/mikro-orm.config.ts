@@ -1,4 +1,4 @@
-import { Options } from '@mikro-orm/core';
+import { LoadStrategy, Options } from '@mikro-orm/core';
 
 const config: Options =
   process.env.NODE_ENV !== 'production'
@@ -7,6 +7,7 @@ const config: Options =
         dbName: 'test.db',
         entities: ['dist/**/*.entity.js', 'dist/**/*.embeddable.js'],
         entitiesTs: ['src/**/*.entity.ts', 'src/**/*.embeddable.ts'],
+        loadStrategy: LoadStrategy.JOINED,
       }
     : {
         type: 'postgresql',
@@ -17,6 +18,7 @@ const config: Options =
         password: process.env.DB_PASSWORD,
         user: process.env.DB_USERNAME,
         dbName: process.env.DB_DATABASE,
+        loadStrategy: LoadStrategy.JOINED,
       };
 
 export default config;
