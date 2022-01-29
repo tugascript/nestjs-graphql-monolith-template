@@ -272,6 +272,15 @@ export class CommonService {
   }
 
   /**
+   * Format Search
+   *
+   * Takes a string trims it and makes it lower case to be used in ILike
+   */
+  public formatSearch(search: string): string {
+    return `%${search.trim().replace(/\s\s+/g, ' ').toLowerCase()}%`;
+  }
+
+  /**
    * Generate Point Slug
    *
    * Takes a string and generates a slug with dots as word separators
