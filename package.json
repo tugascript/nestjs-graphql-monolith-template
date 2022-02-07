@@ -59,7 +59,7 @@
     "reflect-metadata": "^0.1.13",
     "rimraf": "^3.0.2",
     "rxjs": "^7.2.0",
-    "sharp": "^0.29.3",
+    "sharp": "^0.30.0",
     "slugify": "^1.6.5",
     "uuid": "^8.3.2"
   },
