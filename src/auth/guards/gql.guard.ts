@@ -16,9 +16,7 @@ export class GraphQLAuthGuard extends AuthGuard('jwt') {
   public getRequest(context: ExecutionContext): Request {
     const ctx: ICtx = GqlExecutionContext.create(context).getContext();
 
-    if (ctx.extra) {
-      return ctx.extra.request;
-    }
+    if (ctx.extra) return ctx.extra.request;
 
     return ctx.req;
   }

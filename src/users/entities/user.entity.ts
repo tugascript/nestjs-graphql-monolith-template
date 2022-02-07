@@ -1,5 +1,11 @@
 /* eslint-disable @typescript-eslint/no-inferrable-types */
-import { Embedded, Entity, Enum, Property } from '@mikro-orm/core';
+import {
+  Embedded,
+  Entity,
+  Enum,
+  OptionalProps,
+  Property,
+} from '@mikro-orm/core';
 import { Field, ObjectType } from '@nestjs/graphql';
 import {
   IsBoolean,
@@ -21,6 +27,19 @@ import { ownerMiddleware } from '../middleware/owner.middleware';
 @ObjectType('User')
 @Entity({ tableName: 'users' })
 export class UserEntity extends LocalBaseEntity {
+  [OptionalProps]?:
+    | 'id'
+    | 'createdAt'
+    | 'updatedAt'
+    | 'picture'
+    | 'defaultStatus'
+    | 'confirmed'
+    | 'suspended'
+    | 'twoFactor'
+    | 'credentials'
+    | 'lastLogin'
+    | 'lastOnline';
+
   @Field(() => String)
   @Property({ columnType: 'varchar(100)' })
   @IsString()

@@ -8,6 +8,7 @@ const config: Options =
         entities: ['dist/**/*.entity.js', 'dist/**/*.embeddable.js'],
         entitiesTs: ['src/**/*.entity.ts', 'src/**/*.embeddable.ts'],
         loadStrategy: LoadStrategy.JOINED,
+        allowGlobalContext: true,
       }
     : {
         type: 'postgresql',
@@ -19,6 +20,7 @@ const config: Options =
         user: process.env.DB_USERNAME,
         dbName: process.env.DB_DATABASE,
         loadStrategy: LoadStrategy.JOINED,
+        allowGlobalContext: true,
       };
 
 export default config;

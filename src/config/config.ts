@@ -99,6 +99,7 @@ export const config = (): IConfig => {
           entities: ['dist/**/*.entity.js', 'dist/**/*.embeddable.js'],
           entitiesTs: ['src/**/*.entity.ts', 'src/**/*.embeddable.ts'],
           loadStrategy: LoadStrategy.JOINED,
+          allowGlobalContext: true,
         }
       : {
           type: 'postgresql',
@@ -110,6 +111,7 @@ export const config = (): IConfig => {
           user: process.env.DB_USERNAME,
           dbName: process.env.DB_DATABASE,
           loadStrategy: LoadStrategy.JOINED,
+          allowGlobalContext: true,
         },
     redis: TESTING
       ? null

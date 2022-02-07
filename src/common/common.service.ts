@@ -137,13 +137,10 @@ export class CommonService {
     afterIsNum = false,
     innerCursor?: string,
   ): Promise<IPaginated<T>> {
-    const nqb = qb;
-    const cqb = qb;
-
     if (after) {
       const decoded = this.decodeCursor(after, afterIsNum);
       const orderOperation = localQueryOrder(order);
-      const where: FilterQuery<T> = innerCursor
+      const where: FilterQuery<Record<string, unknown>> = innerCursor
         ? {
             [cursor]: {
               [innerCursor]: {
@@ -157,18 +154,20 @@ export class CommonService {
             },
           };
 
-      nqb.andWhere(where);
-      cqb.andWhere(where);
+      qb.andWhere(where);
     }
 
-    const [entities, countResult]: [T[], ICountResult[]] =
+    const nqb = qb;
+    const cqb = qb;
+    const [countResult, entities]: [ICountResult[], T[]] =
       await this.throwInternalError(
         Promise.all([
+          cqb.count(`${name}.${cursor}`, true).execute(),
           nqb
+            .select(`${name}.*`)
             .orderBy(this.getOrderBy(cursor, order, innerCursor))
             .limit(first)
             .getResult(),
-          cqb.count(`${name}.${cursor}`, true).execute(),
         ]),
       );
 
