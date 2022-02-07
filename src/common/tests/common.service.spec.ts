@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { CommonService } from '../common.service';
-import * as faker from '@faker-js/faker';
+import { faker } from '@faker-js/faker';
 
 interface IData {
   id: number;

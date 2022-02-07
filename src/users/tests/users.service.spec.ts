@@ -1,4 +1,4 @@
-import * as faker from '@faker-js/faker';
+import { faker } from '@faker-js/faker';
 import { getRepositoryToken, MikroOrmModule } from '@mikro-orm/nestjs';
 import { EntityRepository } from '@mikro-orm/sqlite';
 import { CacheModule } from '@nestjs/common';
