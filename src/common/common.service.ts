@@ -48,7 +48,7 @@ export class CommonService {
       for (let i = 0; i < len; i++) {
         pages.edges.push(this.createEdge(instances[i], cursor, innerCursor));
       }
-      pages.pageInfo.endCursor = pages.edges[pages.edges.length - 1].cursor;
+      pages.pageInfo.endCursor = pages.edges[len - 1].cursor;
       pages.pageInfo.hasNextPage = totalCount > first;
     }
 
