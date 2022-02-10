@@ -1,4 +1,5 @@
 import { MikroOrmModule } from '@mikro-orm/nestjs';
+import { ApolloDriver } from '@nestjs/apollo';
 import { CacheModule, Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
@@ -8,7 +9,7 @@ import { GraphQLAuthGuard } from './auth/guards/gql.guard';
 import { CommonModule } from './common/common.module';
 import { CacheConfig } from './config/cache.config';
 import { config } from './config/config';
-import { GraphQLConfig } from './config/graphql.config';
+import { GqlConfigService } from './config/graphql.config';
 import { MikroOrmConfig } from './config/mikroorm.config';
 import { validationSchema } from './config/validation';
 import { DataloadersModule } from './dataloaders/dataloaders.module';
@@ -35,7 +36,8 @@ import { UsersModule } from './users/users.module';
     }),
     GraphQLModule.forRootAsync({
       imports: [ConfigModule, AuthModule, DataloadersModule],
-      useClass: GraphQLConfig,
+      driver: ApolloDriver,
+      useClass: GqlConfigService,
     }),
     UsersModule,
     CommonModule,

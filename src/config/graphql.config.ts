@@ -1,6 +1,7 @@
+import { ApolloDriver, ApolloDriverConfig } from '@nestjs/apollo';
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { GqlModuleOptions, GqlOptionsFactory } from '@nestjs/graphql';
+import { GqlOptionsFactory } from '@nestjs/graphql';
 import { BaseRedisCache } from 'apollo-server-cache-redis';
 import responseCachePlugin from 'apollo-server-plugin-response-cache';
 import { Request } from 'express';
@@ -11,7 +12,7 @@ import { ISubscriptionCtx } from '../common/interfaces/subscription-ctx.interfac
 import { DataloadersService } from '../dataloaders/dataloaders.service';
 
 @Injectable()
-export class GraphQLConfig implements GqlOptionsFactory {
+export class GqlConfigService implements GqlOptionsFactory {
   constructor(
     private readonly configService: ConfigService,
     private readonly authService: AuthService,
@@ -22,8 +23,9 @@ export class GraphQLConfig implements GqlOptionsFactory {
     this.configService.get<string>('REFRESH_COOKIE');
   private readonly testing = this.configService.get<boolean>('testing');
 
-  public createGqlOptions(): GqlModuleOptions {
+  public createGqlOptions(): ApolloDriverConfig {
     return {
+      driver: ApolloDriver,
       context: ({ req, res }): ICtx => ({
         req,
         res,
