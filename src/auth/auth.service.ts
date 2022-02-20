@@ -14,7 +14,7 @@ import { sign, verify } from 'jsonwebtoken';
 import { v4 as uuidV4, v5 as uuidV5 } from 'uuid';
 import { CommonService } from '../common/common.service';
 import { LocalMessageType } from '../common/gql-types/message.type';
-import * as dayjs from 'dayjs';
+import dayjs from 'dayjs';
 import { IJwt, ISingleJwt } from '../config/config';
 import { EmailService } from '../email/email.service';
 import { UserEntity } from '../users/entities/user.entity';

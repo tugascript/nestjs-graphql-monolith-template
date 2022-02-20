@@ -6,7 +6,7 @@ import {
 } from '@aws-sdk/client-s3';
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import * as sharp from 'sharp';
+import sharp from 'sharp';
 import { Readable } from 'stream';
 import { CommonService } from '../common/common.service';
 import { FileUploadDto } from './dtos/file-upload.dto';

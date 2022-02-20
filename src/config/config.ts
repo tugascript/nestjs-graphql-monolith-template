@@ -1,7 +1,7 @@
 import { MikroOrmModuleOptions } from '@mikro-orm/nestjs';
 import { S3ClientConfig } from '@aws-sdk/client-s3';
 import { UploadOptions } from 'graphql-upload';
-import * as Redis from 'ioredis';
+import Redis from 'ioredis';
 import { LoadStrategy } from '@mikro-orm/core';
 
 export type tLikeOperator = '$ilike' | '$like';
