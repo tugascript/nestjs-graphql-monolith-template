@@ -1,5 +1,9 @@
 # NestJS GraphQL Boilerplate
 
+## Why is this repo archived?
+
+I used this repo before mercurius was added to nestjs as a first class citizan. I am shifting this repo to mercurius for that reason and I am no longer mantaining this template.
+
 ## Description
 
 Full boiler plate of a NestJS, GraphQL and PostgreSQL (with Mikro-ORM) monolithic backend app.
