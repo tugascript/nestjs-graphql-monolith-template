@@ -2,7 +2,7 @@
 
 ## Why is this repo archived?
 
-I used this repo before mercurius was added to nestjs as a first class citizan. I am shifting this template to mercurius for that reason so I am no longer mantaining this template. [Here is the Mercurius One](https://github.com/tugascript/nestjs-graphql-monolith-fastity)
+I used this repo before mercurius was added to nestjs as a first class citizen. Now, I have shifted this template to mercurius check it out [here](https://github.com/tugascript/nestjs-graphql-monolith-fastity).
 
 ## Description
 
