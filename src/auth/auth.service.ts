@@ -124,7 +124,7 @@ export class AuthService {
       // To check for passwords changes, based on facebook auth
       if (
         lastPassword.length > 0 &&
-        !(await compare(lastPassword, currentPassword))
+        !(await compare(password, lastPassword))
       ) {
         let message = 'You changed your password ';
 
